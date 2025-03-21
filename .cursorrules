@@ -1,0 +1,68 @@
+# DyzBox Project Rules
+
+## Project Intelligence
+
+### Core Project Knowledge
+- DyzBox is an AI-powered email management client focused on intelligent organization, speed, and privacy
+- Target release date for initial version: Q2 2025
+- Roadmap follows 4 phases: Core Experience → Enhanced AI → Team Collaboration → Advanced Personalization
+- Primary tech stack: Next.js frontend, Supabase backend, Python microservices for AI processing
+- AI powered by Gemini 2.0 Flash with on-device processing capabilities where possible
+
+### User Experience Principles
+- Speed is critical - sub-100ms response time for all common actions
+- Keyboard-first design with comprehensive shortcut support
+- Clean, uncluttered UI that focuses attention on important emails
+- Privacy controls must be transparent and user-configurable
+- AI should enhance user control, not replace it
+
+## Development Patterns
+
+### Coding Style
+- TypeScript for all frontend code with strict typing
+- Python for AI services using type hints and Pydantic
+- Components follow atomic design methodology
+- CSS uses Tailwind with custom design system extension
+- File structure follows feature-based organization
+
+### Implementation Priorities
+- Performance optimization takes precedence over code elegance
+- Privacy-preserving approaches preferred when available
+- User control options should exist for all automated features
+- Cross-platform consistency is essential
+
+### Architecture Guidelines
+- Clear separation between UI, business logic, and data layers
+- Provider-agnostic interfaces for email functionality
+- Event-driven architecture for real-time updates
+- Use adapter pattern for integrating different email providers
+- Implement CQRS pattern for optimized read/write operations
+
+## Workflow Preferences
+
+### Project Management
+- Features should align with phased implementation plan
+- Document architecture decisions with clear rationale
+- Create proofs of concept for uncertain technical approaches
+- Follow Test-Driven Development for core functionality
+
+### Documentation Standards
+- Maintain comprehensive API documentation
+- Document UI components in design system
+- Keep architecture diagrams updated with implementation
+- Include privacy and security considerations in technical docs
+
+## Important Vocabulary
+
+### Product-Specific Terms
+- Smart Inbox: Primary view showing only important human-to-human messages
+- Category: Automated or user-defined grouping for emails
+- Sender Screening: First-time sender approval system
+- Intent Recognition: AI identification of email purpose and actions
+- Email Thread Management: Kanban-style tracking of email threads
+
+### Technical Terms
+- On-device Processing: AI computation performed locally without server transmission
+- Email Provider Adapter: Interface layer between application and specific email services
+- Synchronization Engine: System managing bidirectional updates between app and providers
+- AI Pipeline: Sequential processing chain for email analysis and generation 
