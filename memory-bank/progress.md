@@ -2,7 +2,7 @@
 
 ## Current Status
 
-DyzBox has been initialized with a Next.js framework using TypeScript and Tailwind CSS. We've implemented the basic UI components for the email client interface based on the design inspiration, resolved configuration issues with Tailwind CSS, and implemented authentication with NextAuth for Gmail integration. We've also improved the application's resilience by enhancing error handling in server actions and API calls.
+DyzBox has been initialized with a Next.js framework using TypeScript and Tailwind CSS. We've implemented the basic UI components for the email client interface based on the design inspiration, resolved configuration issues with Tailwind CSS, and implemented authentication with NextAuth for Gmail integration. We've also improved the application's resilience by enhancing error handling in server actions and API calls, and implemented a modern two-pane email view with resizable panels.
 
 ### Progress Overview
 
@@ -10,13 +10,13 @@ DyzBox has been initialized with a Next.js framework using TypeScript and Tailwi
 |------|--------|----------|
 | Product Definition | Completed | 100% |
 | System Architecture | In Progress | 40% |
-| UI/UX Design | In Progress | 60% |
+| UI/UX Design | In Progress | 70% |
 | Project Setup | Completed | 100% |
-| Basic UI Implementation | In Progress | 80% |
+| Basic UI Implementation | In Progress | 85% |
 | Authentication Implementation | In Progress | 70% |
 | Email Provider Integration | In Progress | 30% |
 | AI Processing Pipeline | Research Phase | 15% |
-| Frontend Development | In Progress | 40% |
+| Frontend Development | In Progress | 45% |
 | Error Handling & Resilience | In Progress | 60% |
 | Testing Framework | Not Started | 0% |
 | Deployment Pipeline | Not Started | 0% |
@@ -29,11 +29,11 @@ DyzBox has been initialized with a Next.js framework using TypeScript and Tailwi
 4. **Phased Plan**: Clear implementation phases with logical progression
 5. **Development Environment**: Next.js project with TypeScript and Tailwind CSS set up
 6. **Basic UI Components**: Initial UI components implemented:
-   - Email layout structure
+   - Email layout structure with two-pane resizable view
    - Header component with branding and user controls
-   - Sidebar navigation with inbox categories
-   - Email list with AI summaries
-   - Email preview panel with suggested actions
+   - Sidebar navigation with inbox categories (with compact view)
+   - Email list with AI summaries and intelligent date formatting
+   - Email detail panel with message content and actions
 7. **Environment Configuration**: Resolved compatibility issues with Tailwind CSS and Next.js 15
 8. **Authentication**: Implemented NextAuth with Google OAuth provider:
    - Sign-in flow with Gmail
@@ -55,6 +55,12 @@ DyzBox has been initialized with a Next.js framework using TypeScript and Tailwi
     - Reply to emails with quoted original text
     - View sent emails in dedicated sent mail interface
     - Handle both HTML and plain text email formats
+    - Automatic email signature appended to all outgoing emails
+12. **UI Enhancements**:
+    - Implemented a modern two-pane email view with resizable panels
+    - Added intelligent date formatting (time for today's emails, date for older emails)
+    - Created compact sidebar with smaller fonts for better space utilization
+    - Implemented consistent email viewing experience across inbox and label views
 
 ## What's Left to Build
 
@@ -136,6 +142,11 @@ DyzBox has been initialized with a Next.js framework using TypeScript and Tailwi
 | 2025-03-25 | Added reply functionality with quoted original email text |
 | 2025-03-25 | Created sent mail route with list and detail views |
 | 2025-03-25 | Enhanced email formatting to handle both HTML and plain text content |
+| 2025-03-25 | Converted single-page email view to modern two-pane layout with resizable panels |
+| 2025-03-26 | Implemented intelligent date formatting for email list (time for today, date for older emails) |
+| 2025-03-26 | Reduced font sizes in sidebar for a more compact view |
+| 2025-03-26 | Added automatic "Sent with DYZBOX" signature to all outgoing emails |
+| 2025-03-26 | Made email view consistent across inbox and label pages with two-pane layout |
 
 ## Technical Challenges Overcome
 
@@ -148,7 +159,7 @@ DyzBox has been initialized with a Next.js framework using TypeScript and Tailwi
 
 2. **Component Structure**: Created a modular component structure for the email interface:
    - Separated layout components from functional components
-   - Implemented a responsive grid system for the three-panel interface
+   - Implemented a responsive grid system for the resizable two-pane interface
    - Created reusable components for email list items and previews
 
 3. **NextAuth Implementation**: Successfully integrated NextAuth for Gmail authentication:
@@ -182,15 +193,23 @@ DyzBox has been initialized with a Next.js framework using TypeScript and Tailwi
    - Created sent mail views for tracking outgoing messages
    - Developed a UI for viewing detailed email information in both inbox and sent contexts
    - Built server actions for sending, replying, and managing emails
+   - Added automatic "Sent with DYZBOX" signature to outgoing emails
+
+8. **UI Enhancement Implementation**: Improved the email viewing experience:
+   - Converted single-page email view to modern two-pane layout with resizable panels
+   - Implemented intelligent date formatting in email list with context-aware display
+   - Created draggable splitter with visual indicators for panel resizing
+   - Made UI consistent across inbox and label views for a unified experience
 
 ## Current Development Priorities
 
 1. ~~Connect to Gmail API to fetch actual emails~~
 2. ~~Implement compose email functionality~~
-3. Create email thread view
-4. Implement basic AI email summarization
-5. Set up Supabase database for email and summary storage
-6. Continue enhancing error handling and resilience across the application
+3. ~~Create two-pane email view with resizable panels~~
+4. Create email thread view
+5. Implement basic AI email summarization
+6. Set up Supabase database for email and summary storage
+7. Continue enhancing error handling and resilience across the application
 
 ## Future Considerations
 
@@ -199,4 +218,4 @@ DyzBox has been initialized with a Next.js framework using TypeScript and Tailwi
 3. **Internationalization**: Supporting multiple languages and localization
 4. **Accessibility**: Meeting accessibility standards across all platforms
 5. **Enterprise Requirements**: Addressing additional security and compliance needs for enterprise customers
-6. **Offline Support**: Implementing comprehensive offline capability with data synchronization 
+6. **Offline Support**: Implementing comprehensive offline capability with data synchronization
