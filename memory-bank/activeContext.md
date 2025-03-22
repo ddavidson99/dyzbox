@@ -4,7 +4,7 @@
 
 The DyzBox project is currently in the initial implementation phase. We've established the foundation for the email management client and implemented basic UI components based on the design inspiration. Our immediate priorities are:
 
-1. **UI Component Implementation**: Creating a clean, modern interface for the email client with Next.js and Tailwind.
+1. **UI Component Enhancements**: Refining the clean, modern interface with a resizable two-pane layout.
 2. **Gmail API Integration**: Connecting to Gmail to fetch and display real emails.
 3. **Authentication Setup**: Implementing user authentication with Gmail using NextAuth.
 4. **Email Operations**: Building core email functionality (read, send, reply, forward).
@@ -12,6 +12,7 @@ The DyzBox project is currently in the initial implementation phase. We've estab
 6. **Architecture Implementation**: Setting up the hybrid communication architecture between Next.js, Python microservices, and email providers.
 7. **Error Handling**: Improving resilience with better error handling in API calls and server actions.
 8. **Email Workflow Expansion**: Implementing complete email workflow features including sent mail viewing, reply functionality with quoted text, and compose capabilities.
+9. **UI Consistency**: Ensuring consistent UI behavior across different views (inbox, labels).
 
 ## Recent Decisions
 
@@ -20,7 +21,7 @@ The DyzBox project is currently in the initial implementation phase. We've estab
 3. **Email Provider Support**: Initial focus on Gmail integration with IMAP/POP3 support planned for later phases.
 4. **Privacy Approach**: Commitment to on-device processing where possible, with opt-in for cloud processing.
 5. **Repository Setup**: Project initialized with Next.js, TypeScript, and Tailwind CSS, and pushed to GitHub at https://github.com/ddavidson99/dyzbox.
-6. **UI Structure**: Implemented a three-panel layout with sidebar navigation, email list, and email preview.
+6. **UI Structure**: Implemented a two-pane layout with sidebar navigation, resizable email list and detail panes.
 7. **Tailwind Configuration**: Resolved compatibility issues with Tailwind CSS by downgrading from v4 alpha to v3.4.1 stable and configuring PostCSS properly.
 8. **Email Identification Strategy**: Designed approach for uniquely identifying emails using provider IDs (Gmail Message ID, Thread ID) and our own internal identifiers.
 9. **AI Summary Storage**: Decided to store AI-generated summaries separately from email content in Supabase, with proper linking to original emails.
@@ -31,6 +32,11 @@ The DyzBox project is currently in the initial implementation phase. We've estab
 14. **Client Component Structure**: Updated client components to use the latest Next.js patterns for handling route parameters with React.use().
 15. **Email Reply Implementation**: Enhanced reply functionality to properly include the original email text in quoted format, maintaining the standard email client experience.
 16. **Route Organization**: Created dedicated routes for key email categories (inbox, sent) with consistent patterns for both listing and detail views.
+17. **UI Layout Update**: Converted from a single-page email view to a modern two-pane layout with resizable panels.
+18. **Date Formatting**: Implemented intelligent date formatting that shows time for today's emails and date for older emails.
+19. **Email Branding**: Added automatic "Sent with DYZBOX" signature to all outgoing emails.
+20. **Space Optimization**: Reduced sidebar font sizes for a more compact view and better space utilization.
+21. **UI Consistency**: Created consistent email viewing experience across inbox and label pages.
 
 ## Current Challenges
 
@@ -46,13 +52,15 @@ The DyzBox project is currently in the initial implementation phase. We've estab
 10. **Error Resilience**: Making the application robust against API failures and network issues.
 11. **Email Content Formatting**: Ensuring proper handling of both HTML and plain text email content across various email operations.
 12. **Navigation Flow**: Creating intuitive navigation patterns between email views and maintaining context during transitions.
+13. **Consistent UI**: Ensuring consistent behavior of resizable panels and email views across different parts of the application.
+14. **Mobile Responsiveness**: Adapting the resizable two-pane layout for mobile devices.
 
 ## Implementation Strategy
 
 The development approach follows a phased implementation plan:
 
 ### Current Phase: Core UI & Gmail Integration (Q1 2025)
-- Building clean, modern UI components for email management
+- Building clean, modern UI components for email management with resizable two-pane view
 - Implementing Gmail authentication and basic email operations
 - Creating the foundation for the email client experience
 - Setting up the data models and state management for emails
@@ -60,6 +68,7 @@ The development approach follows a phased implementation plan:
 - Implementing the hybrid communication architecture between services
 - Adding robust error handling to provide a better user experience
 - Building complete email workflow with inbox, sent mail, compose, and reply functionality
+- Ensuring consistent UI behavior across different views
 
 ### Next Phase: Enhanced AI Features (Q2 2025)
 - Adding AI-powered email categorization and summary capabilities
@@ -76,6 +85,7 @@ The development approach follows a phased implementation plan:
 5. **Thread View**: Implement email thread/conversation view
 6. **Mobile Responsiveness**: Ensure the UI works well on mobile devices
 7. **Error Handling**: Continue improving error handling across all components
+8. **UI Refinement**: Further refine the resizable panel experience and interactions
 
 ## Technical Insights
 
@@ -131,6 +141,15 @@ The development approach follows a phased implementation plan:
    - Reusable server actions for common email operations
    - Rich text handling with both HTML and plain text support
    - Quoted text handling for email replies following standard email client conventions
+   - Automatic signature added to all outgoing emails
+
+10. **UI Enhancement Implementation**: We've improved the email viewing experience with these patterns:
+    - Converted to a two-pane layout with resizable panels using React state
+    - Implemented a draggable splitter with visual feedback during resizing
+    - Designed a consistent width allocation system between email list and detail panes
+    - Created intelligent date formatting that adapts based on email age 
+    - Made UI components reusable across different parts of the application
+    - Optimized space usage with compact sidebar and appropriate font sizes
 
 ## Open Questions
 
@@ -144,12 +163,14 @@ The development approach follows a phased implementation plan:
 8. How should error handling work across the distributed architecture?
 9. What's the best approach for handling network failures during critical operations?
 10. How can we optimize performance while maintaining a robust error handling approach?
+11. How can we make the resizable two-pane layout work effectively on mobile devices?
+12. What's the best approach for maintaining UI state during navigation between different views?
 
 ## Current Team Focus
 
-- **Frontend Team**: Implementing UI components and email client interface
+- **Frontend Team**: Refining UI components and implementing resizable two-pane layout
 - **API Integration**: Connecting to Gmail API and handling authentication
-- **UX Team**: Refining the user interface based on design inspiration
+- **UX Team**: Improving the user interface with better spacing and responsive design
 - **Backend Planning**: Preparing for server-side components and data storage
 - **AI Team**: Designing the AI processing pipeline for email summarization
 - **DevOps**: Setting up the infrastructure for Next.js and Python microservices
@@ -171,10 +192,12 @@ The development approach follows a phased implementation plan:
 1. Gmail API will provide sufficient access for our required email operations
 2. Next.js and Tailwind will provide the performance needed for a responsive UI
 3. Users will be willing to grant the necessary permissions for email access
-4. The three-panel layout will provide an optimal user experience across devices
+4. The two-pane resizable layout will provide an optimal user experience across devices
 5. Gemini 2.0 Flash will be capable of generating useful email summaries
 6. Supabase will efficiently handle our database needs for email storage
 7. Direct communication with email providers will deliver sub-100ms response times for core operations
 8. Python microservices will provide the flexibility needed for complex AI processing 
 9. NextAuth OAuth flow with Google will provide a smooth authentication experience for users 
-10. Our error handling approach will be robust enough to handle most API and network failures 
+10. Our error handling approach will be robust enough to handle most API and network failures
+11. The automatic signature approach will enhance brand recognition without impacting user experience
+12. The intelligent date formatting will provide context-relevant information to users
