@@ -82,6 +82,110 @@ DyzBox implements a hybrid communication architecture:
    - Optimizes for performance in email operations
    - Supports complex querying for email organization
 
+## Authentication & User Identity Strategy
+
+DyzBox uses a provider-based authentication strategy with a unified user identity system:
+
+### Authentication Flow
+
+```
+┌─────────────────────┐     ┌─────────────────────┐     ┌─────────────────────┐
+│  User initiates     │     │  OAuth with         │     │  DyzBox creates     │
+│  sign-in with       │ ──► │  Google or          │ ──► │  user record with   │
+│  Google/Microsoft   │     │  Microsoft          │     │  provider info      │
+└─────────────────────┘     └─────────────────────┘     └─────────────────────┘
+                                                                │
+┌─────────────────────┐     ┌─────────────────────┐            │
+│  User accesses      │     │  Email provider     │            │
+│  email client       │ ◄── │  adapter uses       │ ◄──────────┘
+│  features           │     │  stored tokens      │
+└─────────────────────┘     └─────────────────────┘
+```
+
+### Key Authentication Patterns
+
+1. **Provider-Based Authentication**
+   - Users authenticate with Google or Microsoft OAuth
+   - No separate DyzBox password required
+   - OAuth tokens securely stored for provider access
+   - Primary email address serves as unique identifier
+
+2. **Account Linking System**
+   - Support for multiple email providers per user
+   - Primary provider designation for billing and notifications
+   - "Add Account" flow via additional OAuth authentication
+   - All accounts linked to a single user identity
+
+3. **Provider Switching Mechanism**
+   - User can change primary provider while maintaining single identity
+   - Database records updated to reflect new primary provider
+   - All user data, preferences, and payment information preserved
+   - Notifications and billing references automatically updated
+
+4. **User Identity Management**
+   - User record created on first authentication
+   - Email address serves as primary identifier
+   - Provider type and provider-specific ID stored
+   - Profile data may be synced from provider
+
+### Database Model
+
+```
+Table: users
+  - id (primary key, uuid)
+  - primary_email (unique)
+  - primary_provider (enum: google, microsoft, etc.)
+  - primary_provider_id (string)
+  - created_at (timestamp)
+  - last_active (timestamp)
+  - payment_info (jsonb)
+  - preferences (jsonb)
+
+Table: linked_accounts
+  - id (primary key, uuid)
+  - user_id (foreign key → users.id)
+  - provider (enum: google, microsoft, etc.)
+  - provider_id (string)
+  - email (string)
+  - access_token (encrypted)
+  - refresh_token (encrypted)
+  - scopes (array)
+  - added_at (timestamp)
+  - last_used (timestamp)
+```
+
+### Implementation Considerations
+
+1. **Token Refresh Handling**:
+   - Implement proper refresh token flow for each provider
+   - Schedule token refresh before expiration
+   - Handle failed refresh with re-authentication prompt
+
+2. **Security Measures**:
+   - Encrypt all stored access and refresh tokens
+   - Implement principle of least privilege for OAuth scopes
+   - Session management with appropriate timeouts
+   - Clear audit trail for authentication events
+
+3. **Provider Switching Process**:
+   - User initiates "Change Primary Account" from settings
+   - Verification of access to both accounts
+   - Update primary_provider, primary_provider_id, and primary_email fields
+   - Update billing references and notification preferences
+   - Maintain old provider as linked account unless explicitly removed
+
+4. **Error Handling**:
+   - Graceful handling of revoked OAuth permissions
+   - Account recovery process for lost provider access
+   - Clear user guidance for authentication issues
+
+5. **Privacy Considerations**:
+   - Transparent explanation of data usage
+   - Minimal collection of provider account data
+   - Clear user controls for account linking/unlinking
+
+This authentication strategy provides a streamlined user experience with a single sign-in while supporting the multi-provider nature of DyzBox, and ensures continuity of user data even when the primary email provider changes.
+
 ## Core System Components
 
 ### 1. Email Processing Engine
@@ -549,4 +653,4 @@ Identifies important entities like people, dates, locations, and action items.
 Creates concise, useful summaries of email content.
 
 ### ReplyGenerator
-Creates context-aware reply suggestions that match user's tone and style. 
+Creates context-aware reply suggestions that match user's tone and style.
