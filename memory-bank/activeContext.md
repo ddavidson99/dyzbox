@@ -13,12 +13,13 @@ The DyzBox project is currently in the initial implementation phase. We've estab
 7. **Error Handling**: Improving resilience with better error handling in API calls and server actions.
 8. **Email Workflow Expansion**: Implementing complete email workflow features including sent mail viewing, reply functionality with quoted text, and compose capabilities.
 9. **UI Consistency**: Ensuring consistent UI behavior across different views (inbox, labels).
+10. **Multi-Provider Strategy**: Designing the foundation for supporting both Gmail and Outlook while maintaining a unified user identity.
 
 ## Recent Decisions
 
 1. **Tech Stack Selection**: Next.js frontend with Tailwind CSS v3.4.1, Supabase (PostgreSQL) backend, Python microservices for AI integration.
 2. **AI Provider**: Gemini 2.0 Flash selected as the primary LLM for AI capabilities.
-3. **Email Provider Support**: Initial focus on Gmail integration with IMAP/POP3 support planned for later phases.
+3. **Email Provider Support**: Initial focus on Gmail integration with Outlook and IMAP/POP3 support planned for later phases.
 4. **Privacy Approach**: Commitment to on-device processing where possible, with opt-in for cloud processing.
 5. **Repository Setup**: Project initialized with Next.js, TypeScript, and Tailwind CSS, and pushed to GitHub at https://github.com/ddavidson99/dyzbox.
 6. **UI Structure**: Implemented a two-pane layout with sidebar navigation, resizable email list and detail panes.
@@ -37,6 +38,7 @@ The DyzBox project is currently in the initial implementation phase. We've estab
 19. **Email Branding**: Added automatic "Sent with DYZBOX" signature to all outgoing emails.
 20. **Space Optimization**: Reduced sidebar font sizes for a more compact view and better space utilization.
 21. **UI Consistency**: Created consistent email viewing experience across inbox and label pages.
+22. **Authentication Strategy**: Decided on provider-based authentication (OAuth) with account linking for multiple email providers, using a single user identity in our system.
 
 ## Current Challenges
 
@@ -54,6 +56,8 @@ The DyzBox project is currently in the initial implementation phase. We've estab
 12. **Navigation Flow**: Creating intuitive navigation patterns between email views and maintaining context during transitions.
 13. **Consistent UI**: Ensuring consistent behavior of resizable panels and email views across different parts of the application.
 14. **Mobile Responsiveness**: Adapting the resizable two-pane layout for mobile devices.
+15. **Multi-Provider Authentication**: Designing a system that supports both Gmail and Outlook authentication while maintaining a unified user experience.
+16. **User Identity Management**: Implementing a system that links multiple provider accounts to a single DyzBox user identity.
 
 ## Implementation Strategy
 
@@ -69,12 +73,16 @@ The development approach follows a phased implementation plan:
 - Adding robust error handling to provide a better user experience
 - Building complete email workflow with inbox, sent mail, compose, and reply functionality
 - Ensuring consistent UI behavior across different views
+- Creating the database schema for user identity and provider linking
 
-### Next Phase: Enhanced AI Features (Q2 2025)
+### Next Phase: Enhanced AI Features & Multi-Provider Support (Q2 2025)
 - Adding AI-powered email categorization and summary capabilities
 - Implementing smart reply suggestions
 - Enhancing the email organization capabilities
 - Developing speed-optimized keyboard navigation
+- Adding support for Microsoft Outlook integration
+- Implementing account linking for users with multiple providers
+- Creating provider-switching capabilities for users
 
 ## Next Steps
 
@@ -86,6 +94,8 @@ The development approach follows a phased implementation plan:
 6. **Mobile Responsiveness**: Ensure the UI works well on mobile devices
 7. **Error Handling**: Continue improving error handling across all components
 8. **UI Refinement**: Further refine the resizable panel experience and interactions
+9. **User Identity Schema**: Implement the database schema for user identity and provider linking
+10. **Account Linking UI**: Design the interface for users to link multiple email accounts
 
 ## Technical Insights
 
@@ -151,6 +161,13 @@ The development approach follows a phased implementation plan:
     - Made UI components reusable across different parts of the application
     - Optimized space usage with compact sidebar and appropriate font sizes
 
+11. **Multi-Provider Authentication Strategy**: We've designed a provider-based authentication approach:
+    - Users authenticate with either Google or Microsoft through OAuth
+    - Primary provider identity stored in our database as the user identifier
+    - Ability to link additional email providers to the same user identity
+    - Support for changing primary provider while maintaining single user account
+    - Clear separation between authentication identity and email provider access
+
 ## Open Questions
 
 1. How can we optimize the Gmail API usage to handle large email volumes efficiently?
@@ -165,6 +182,8 @@ The development approach follows a phased implementation plan:
 10. How can we optimize performance while maintaining a robust error handling approach?
 11. How can we make the resizable two-pane layout work effectively on mobile devices?
 12. What's the best approach for maintaining UI state during navigation between different views?
+13. What's the most secure way to store and refresh OAuth tokens for multiple providers?
+14. How should we handle the situation where a user's provider OAuth access is revoked?
 
 ## Current Team Focus
 
@@ -175,12 +194,14 @@ The development approach follows a phased implementation plan:
 - **AI Team**: Designing the AI processing pipeline for email summarization
 - **DevOps**: Setting up the infrastructure for Next.js and Python microservices
 - **QA**: Developing testing strategies for error handling and resilience
+- **Architecture Team**: Designing the multi-provider authentication and user identity system
 
 ## Reference Materials
 
 - Project Brief: Complete project overview and requirements
 - Competitive Analysis: Detailed comparison with existing email clients
 - Gmail API Documentation: https://developers.google.com/gmail/api
+- Microsoft Graph API Documentation: https://learn.microsoft.com/en-us/graph/api/resources/mail-api-overview
 - NextAuth Documentation: https://next-auth.js.org/
 - Design Inspiration: Clean, modern email UI examples
 - System Patterns: Detailed architecture and data model designs
@@ -201,3 +222,5 @@ The development approach follows a phased implementation plan:
 10. Our error handling approach will be robust enough to handle most API and network failures
 11. The automatic signature approach will enhance brand recognition without impacting user experience
 12. The intelligent date formatting will provide context-relevant information to users
+13. Users will prefer OAuth-based authentication over creating separate DyzBox credentials
+14. Provider-based authentication with account linking will provide the optimal balance of security and user experience
