@@ -1,26 +1,213 @@
 # Technical Context: DyzBox
 
-## Tech Stack
+## Technology Stack
 
 ### Frontend
-- **Framework**: Next.js
-- **Styling**: Tailwind CSS with possible integration of shadcn components
-- **State Management**: TBD (likely React Context or Redux)
+- **Framework**: Next.js 15 (with App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS v3.4.1
+- **State Management**: React Context + Hooks
+- **Component Library**: Custom components with Tailwind
+- **UI Design Approach**: Atomic design methodology
 
 ### Backend
-- **Database**: PostgreSQL hosted on Supabase
-- **Authentication**: Supabase Auth
-- **Storage**: Supabase Storage
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: NextAuth with Google provider
+- **API Layer**: Next.js server components and API routes for core operations
+- **Email Service Communication**: Direct integration with email provider APIs
+- **File Storage**: Supabase Storage
 
-### AI/ML Components
+### AI Services
+- **Language**: Python
 - **Primary LLM**: Gemini 2.0 Flash
-- **Embeddings**: Gemini embeddings for semantic search capabilities
-- **Processing**: Python microservices with Pydantic AI for LLM interactions
+- **Architecture**: Microservices for AI processing
+- **Communication**: REST API between Next.js and Python services
+- **Processing Modes**: On-device (when possible) and cloud-based
 
-### Infrastructure
-- **Payment Processing**: Stripe
-- **Hosting**: TBD
-- **CI/CD**: TBD
+### Email Provider Integration
+- **Primary Provider**: Gmail API
+- **Future Providers**: Outlook, IMAP/POP3
+- **Integration Pattern**: Adapter pattern with provider-specific implementations
+- **Communication**: Direct from Next.js server components for core operations
+
+## System Architecture
+
+DyzBox follows a hybrid communication architecture that optimizes for both performance and specialized processing:
+
+```
+┌─────────────────────┐
+│  Next.js Frontend   │
+│  & Server Components│
+└────────┬─────┬──────┘
+         │     │
+         │     ▼
+         │  ┌─────────────────┐
+         │  │ Python AI       │
+         │  │ Microservices   │
+         │  └─────────────────┘
+         │
+         ▼
+┌─────────────────────┐
+│ Email Provider      │
+│ Adapter Layer       │
+└────────┬────────────┘
+         │
+         ▼
+┌─────────────────────┐
+│ Email Providers     │
+│ (Gmail, Outlook)    │
+└─────────────────────┘
+```
+
+### Key Technical Decisions
+1. **Direct Provider Communication**: Core email operations (fetch, send, read, write) flow directly from Next.js to email providers for maximum performance
+2. **AI-Mediated Processing**: Email content requiring analysis routes through Python microservices for specialized AI processing
+3. **Common Adapter Interface**: Provider-specific implementations hidden behind consistent API regardless of email service
+4. **Separation of Concerns**: Clear boundaries between UI, business logic, AI processing, and data storage
+
+## Development Environment
+
+### Local Development
+- **Node.js**: v18.x (LTS)
+- **Package Manager**: npm
+- **Python**: v3.11+
+- **IDE**: VS Code with TypeScript and Tailwind extensions
+- **Development Server**: Next.js dev server
+- **API Testing**: Postman/Insomnia
+
+### CI/CD
+- **Source Control**: Git (GitHub)
+- **CI Pipeline**: GitHub Actions
+- **Deployment**: Vercel (frontend), Cloud Run (Python microservices)
+- **Environment Variables**: Stored in Vercel and Cloud Run
+
+### Testing
+- **Unit Testing**: Jest
+- **Component Testing**: React Testing Library
+- **E2E Testing**: Playwright
+- **API Testing**: Supertest
+- **AI Testing**: Custom evaluation framework
+
+## External Dependencies
+
+### Frontend Dependencies
+- `next`: Next.js framework
+- `react`, `react-dom`: React library
+- `typescript`: TypeScript language
+- `tailwindcss`: Utility-first CSS framework
+- `next-auth`: Authentication framework
+- `lucide-react`: Icon components
+- `clsx`, `tailwind-merge`: Utility for merging class names
+
+### Backend Dependencies
+- Supabase client libraries
+- Gmail API client libraries
+- Outlook API client libraries (future)
+
+### AI Service Dependencies
+- `gemini-ai`: Gemini API client
+- `fastapi`: API framework for Python microservices
+- `pydantic`: Data validation
+- `uvicorn`: ASGI server
+- `langchain`: LLM framework (optional)
+- NLP processing libraries
+
+## Infrastructure Requirements
+
+### Frontend Hosting
+- **Platform**: Vercel
+- **Regions**: Multi-region deployment
+- **Edge Functions**: For performant server components
+
+### Backend Services
+- **Database**: Supabase PostgreSQL
+- **Storage**: Supabase Storage
+- **Authentication**: NextAuth + Google OAuth
+
+### AI Microservices
+- **Hosting**: Google Cloud Run or similar containerized service
+- **Scaling**: Auto-scaling based on demand
+- **GPU Access**: Optional for more complex AI tasks
+
+## Security Considerations
+
+### Authentication
+- OAuth 2.0 with Google for Gmail access
+- JWT for service-to-service communication
+- PKCE flow for added security
+
+### Data Protection
+- End-to-end encryption for sensitive data
+- On-device processing where possible
+- Clear data retention policies
+
+### API Security
+- Rate limiting for all endpoints
+- Input validation and sanitization
+- CORS configuration
+- API keys for service-to-service communication
+
+## Performance Considerations
+
+### Frontend
+- Server components for improved loading performance
+- Static generation where possible
+- Edge functions for low-latency operations
+- Code splitting and lazy loading
+
+### Email Operations
+- Direct communication with providers for core operations
+- Optimistic UI updates for immediate feedback
+- Background synchronization
+- Efficient caching strategies
+
+### AI Processing
+- Selective processing based on email importance
+- Batch processing for efficiency
+- Throttling during high load periods
+- Progressive enhancement approach
+
+## Technical Roadmap
+
+### Phase 1: Core Infrastructure
+- Next.js application setup
+- Basic UI components
+- Gmail authentication
+- Email provider adapter layer
+- Direct email operations
+
+### Phase 2: AI Integration
+- Python microservice setup
+- AI summary generation
+- Next.js to Python communication
+- Initial on-device processing
+
+### Phase 3: Advanced Features
+- Additional email providers
+- Enhanced AI capabilities
+- Performance optimizations
+- Mobile responsive design
+
+### Phase 4: Enterprise Features
+- Team collaboration
+- Advanced security features
+- Custom AI models
+- Enterprise authentication options
+
+## Technical Configuration
+
+### Next.js Setup
+- **App Router**: Using the Next.js App Router for routing
+- **Server Components**: Will use React Server Components for performance
+- **TypeScript**: Strict typing throughout the application
+- **Tailwind Configuration**: Custom colors and extensions in tailwind.config.ts
+- **PostCSS**: CommonJS format for compatibility with Next.js 15
+
+### Tailwind Configuration
+- **Version**: Using stable Tailwind CSS v3.4.1 (avoided v4 alpha due to compatibility issues)
+- **Custom Colors**: Extended default color palette with application-specific colors
+- **Components**: Building custom components with consistent styling patterns
+- **Utility Classes**: Extending Tailwind with custom utility classes as needed
 
 ## Technical Requirements
 
@@ -56,6 +243,21 @@
 - **Data Storage Layer**: Manages user preferences, AI models, and cached data
 - **Integration Layer**: Connects with external systems and services
 
+### UI Component Structure
+- **Layout Components**: Handle overall page structure and positioning
+  - Header: Top navigation and user controls
+  - Sidebar: Primary navigation and categories
+  - EmailLayout: Three-panel layout structure
+
+- **Feature Components**: Provide specific functionality
+  - EmailList: Displays emails with summaries
+  - EmailListItem: Individual email preview in list
+  - EmailPreview: Detailed view of selected email
+
+- **UI Elements**: Reusable interface components
+  - Buttons, inputs, badges, and other interactive elements
+  - Icons and visual indicators
+
 ### Data Flow
 1. Emails retrieved from provider APIs and stored in local cache
 2. AI pipeline processes emails for categorization and summarization
@@ -89,6 +291,27 @@
 - CRM and project management tools have diverse APIs
 - Document management systems use different standards
 - User expectations for integration depth may exceed feasibility
+
+## Development Tools
+
+### Development Environment
+- **Package Manager**: npm
+- **Code Editor**: VSCode with TypeScript and Tailwind extensions
+- **Linting**: ESLint with TypeScript rules
+- **Formatting**: Prettier
+- **Version Control**: Git with GitHub
+
+### Technical Decisions and Learnings
+
+1. **Tailwind CSS Configuration**: We found that Tailwind CSS v4 alpha had compatibility issues with Next.js 15. We downgraded to v3.4.1 for better stability. Key learnings:
+   - PostCSS configuration must use CommonJS format for Next.js compatibility
+   - Color definitions needed to be explicitly added to the Tailwind config
+   - Utility class usage needed to match the version of Tailwind being used
+
+2. **Next.js 15 Requirements**:
+   - Specific package versions are needed for compatibility
+   - Turbopack has limitations with certain CSS processing approaches
+   - The App Router requires a different file structure than previous Next.js versions
 
 ## Development Approach
 

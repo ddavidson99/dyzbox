@@ -7,8 +7,9 @@ import { GmailProvider } from '@/lib/email/providers/GmailProvider';
 import { Email } from '@/lib/email/providers/EmailProvider';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Send } from 'lucide-react';
 
-export default function InboxPage() {
+export default function SentPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [emails, setEmails] = useState<Email[]>([]);
@@ -24,13 +25,13 @@ export default function InboxPage() {
         const emailProvider = new GmailProvider(session.accessToken as string);
         const emailService = new EmailService(emailProvider);
         
-        // Fetch emails
-        const fetchedEmails = await emailService.getInbox();
+        // Fetch sent emails
+        const fetchedEmails = await emailService.getSent();
         setEmails(fetchedEmails.emails || []);
         setError(null);
       } catch (e: any) {
-        console.error('Error fetching emails:', e);
-        setError(e.message || 'Failed to fetch emails');
+        console.error('Error fetching sent emails:', e);
+        setError(e.message || 'Failed to fetch sent emails');
       } finally {
         setLoading(false);
       }
@@ -50,7 +51,10 @@ export default function InboxPage() {
         <div className="w-full overflow-y-auto">
           <div className="p-4">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold">Inbox</h2>
+              <div className="flex items-center">
+                <Send className="h-5 w-5 mr-2 text-gray-600" />
+                <h2 className="text-lg font-semibold">Sent Mail</h2>
+              </div>
               <button
                 onClick={handleComposeClick}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center"
@@ -64,7 +68,7 @@ export default function InboxPage() {
             
             {loading && (
               <div className="text-center py-4">
-                <p>Loading emails...</p>
+                <p>Loading sent emails...</p>
               </div>
             )}
             
@@ -75,17 +79,21 @@ export default function InboxPage() {
             )}
             
             {!loading && emails.length === 0 && !error ? (
-              <p className="text-gray-500">No emails found</p>
+              <p className="text-gray-500">No sent emails found</p>
             ) : (
               <ul className="space-y-2">
                 {emails.map((email) => (
                   <li key={email.id}>
                     <Link 
-                      href={`/inbox/${email.id}`}
-                      className={`block p-3 hover:bg-gray-100 rounded cursor-pointer ${!email.isRead ? 'font-semibold bg-blue-50' : ''}`}
+                      href={`/sent/${email.id}`}
+                      className="block p-3 hover:bg-gray-100 rounded cursor-pointer"
                     >
                       <div className="flex justify-between">
-                        <div className="font-medium">{email.from.name || email.from.email}</div>
+                        <div className="font-medium">
+                          {email.to && email.to.length > 0
+                            ? email.to[0].name || email.to[0].email
+                            : 'No recipient'}
+                        </div>
                         <div className="text-sm text-gray-500">
                           {new Date(email.receivedAt).toLocaleTimeString([], {
                             hour: '2-digit',

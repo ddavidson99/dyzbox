@@ -1,6 +1,5 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   /* config options here */
   
   // Allow ngrok for development
@@ -29,17 +28,25 @@ const nextConfig: NextConfig = {
   
   // Allow ngrok domains
   images: {
-    domains: ["*.ngrok-free.app", "localhost"],
+    domains: ["localhost"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.ngrok-free.app",
+      },
+    ],
   },
   
   // Properly configure allowed dev origins for ngrok
+  allowedDevOrigins: [
+    "localhost", 
+    "*.ngrok-free.app",
+    "splendid-positively-chow.ngrok-free.app"
+  ],
+  
   experimental: {
-    allowedDevOrigins: [
-      "localhost", 
-      "*.ngrok-free.app",
-      "splendid-positively-chow.ngrok-free.app"
-    ],
+    // Other experimental features can go here
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig; 

@@ -1,96 +1,85 @@
+"use client";
+
 import Link from "next/link";
-import { 
-  Inbox, 
-  Star, 
-  Send, 
-  FileText, 
-  Briefcase, 
-  Receipt, 
-  Newspaper 
-} from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Inbox, Send, Archive, Trash, Tag, Settings, Plus } from "lucide-react";
 
-type SidebarItemProps = {
-  icon: React.ElementType;
-  label: string;
-  href: string;
-  active?: boolean;
-  badge?: number;
-};
-
-function SidebarItem({ icon: Icon, label, href, active, badge }: SidebarItemProps) {
-  return (
-    <Link 
-      href={href}
-      className={cn(
-        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-        active 
-          ? "bg-gray-100 text-black" 
-          : "text-gray-700 hover:text-black hover:bg-gray-50"
-      )}
-    >
-      <Icon size={18} />
-      <span>{label}</span>
-      {badge !== undefined && (
-        <span className="ml-auto bg-gray-200 text-gray-800 text-xs font-medium px-2 py-0.5 rounded-full">
-          {badge}
-        </span>
-      )}
-    </Link>
-  );
-}
+const navItems = [
+  {
+    name: "Inbox",
+    href: "/inbox",
+    icon: Inbox,
+  },
+  {
+    name: "Sent",
+    href: "/sent",
+    icon: Send,
+  },
+  {
+    name: "Archive",
+    href: "/archive",
+    icon: Archive,
+  },
+  {
+    name: "Trash",
+    href: "/trash",
+    icon: Trash,
+  },
+  {
+    name: "Categories",
+    href: "/categories",
+    icon: Tag,
+  },
+  {
+    name: "Settings",
+    href: "/settings",
+    icon: Settings,
+  },
+];
 
 export function Sidebar() {
-  // These would be fetched from an API in a real app
-  const unreadCount = 14;
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const handleCompose = () => {
+    router.push('/inbox/compose');
+  };
 
   return (
-    <div className="w-56 bg-white border-r border-gray-200 h-full p-3 flex flex-col gap-8">
-      <div className="flex flex-col gap-1">
-        <SidebarItem 
-          icon={Inbox} 
-          label="Smart Inbox" 
-          href="/inbox" 
-          active={true} 
-          badge={unreadCount} 
-        />
-        <SidebarItem 
-          icon={Star} 
-          label="Important" 
-          href="/important" 
-        />
-        <SidebarItem 
-          icon={Send} 
-          label="Sent" 
-          href="/sent" 
-        />
-        <SidebarItem 
-          icon={FileText} 
-          label="Drafts" 
-          href="/drafts" 
-        />
+    <div className="w-64 border-r border-gray-200 h-full bg-white flex flex-col">
+      <div className="p-4">
+        <h1 className="text-2xl font-bold text-gray-900">DyzBox</h1>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <div className="px-3 text-xs font-medium text-gray-500">Categories</div>
-        <div className="flex flex-col gap-1">
-          <SidebarItem 
-            icon={Briefcase} 
-            label="Work" 
-            href="/category/work" 
-          />
-          <SidebarItem 
-            icon={Receipt} 
-            label="Receipts" 
-            href="/category/receipts" 
-          />
-          <SidebarItem 
-            icon={Newspaper} 
-            label="Newsletters" 
-            href="/category/newsletters" 
-          />
-        </div>
+      <div className="p-2">
+        <button 
+          onClick={handleCompose}
+          className="w-full rounded-full bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center py-2 px-4"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Compose
+        </button>
       </div>
+
+      <nav className="mt-6 flex-1">
+        <ul>
+          {navItems.map((item) => (
+            <li key={item.name}>
+              <Link 
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900",
+                  pathname === item.href ? "bg-gray-100 text-gray-900" : ""
+                )}
+              >
+                <item.icon className="h-5 w-5" />
+                <span>{item.name}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </div>
   );
 } 

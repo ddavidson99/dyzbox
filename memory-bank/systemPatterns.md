@@ -25,6 +25,40 @@ DyzBox follows a layered architecture with clear separation of concerns:
 └─────────────────────────────────────────────────────┘
 ```
 
+### Service Communication Architecture
+
+DyzBox implements a hybrid communication architecture:
+
+```
+┌─────────────────────┐
+│  Next.js Frontend   │
+│  & Server Components│
+└────────┬─────┬──────┘
+         │     │
+         │     ▼
+         │  ┌─────────────────┐
+         │  │ Python AI       │
+         │  │ Microservices   │
+         │  └─────────────────┘
+         │
+         ▼
+┌─────────────────────┐
+│ Email Provider      │
+│ Adapter Layer       │
+└────────┬────────────┘
+         │
+         ▼
+┌─────────────────────┐
+│ Email Providers     │
+│ (Gmail, Outlook)    │
+└─────────────────────┘
+```
+
+**Direct vs. AI-Mediated Communication:**
+- Core email operations (fetch, send, read, write) flow directly from Next.js to email providers
+- AI-dependent operations (summarization, categorization, intent recognition) route through Python microservices
+- This hybrid approach optimizes for both performance and specialized AI processing
+
 ### Key Architectural Patterns
 
 1. **Microservices for AI Processing**
@@ -35,7 +69,8 @@ DyzBox follows a layered architecture with clear separation of concerns:
 2. **Adapter Pattern for Email Providers**
    - Common interface for all email provider interactions
    - Provider-specific implementations behind consistent API
-   - Facilitates adding new provider support
+   - Direct communication from Next.js for core operations
+   - Facilitates adding new provider support without changing business logic
 
 3. **Event-Driven Architecture**
    - Publish-subscribe model for email and state changes
@@ -62,6 +97,18 @@ DyzBox follows a layered architecture with clear separation of concerns:
 - `EmailProvider` - Abstraction for email service connections
 - `EmailProcessor` - Processes raw emails into application model
 - `SynchronizationService` - Manages bidirectional sync with providers
+
+**Email Routes Pattern**:
+- Consistent route structure for email categories (inbox, sent, archive, etc.)
+- Parallel components for list and detail views 
+- Route-specific functionality with shared underlying services
+- URL parameter-based navigation between related views
+
+**Email Operations Pattern**:
+- Standardized server actions for common operations
+- Stateful client components with operation feedback
+- Error-resilient transaction approach for critical operations
+- Optimistic UI updates with fallback for failed operations
 
 ### 2. AI Analysis Pipeline
 
@@ -91,6 +138,12 @@ DyzBox follows a layered architecture with clear separation of concerns:
 - Sub-100ms response time for all interactions
 - Keyboard-first interaction model
 - Progressive enhancement for accessibility
+
+**Email Interaction Patterns**:
+- Consistent navigation between list and detail views
+- Common actions available across different email contexts
+- Context-preserving transitions between related views
+- Stateful components that maintain user selections
 
 ### 4. Data Management System
 
@@ -144,6 +197,50 @@ DyzBox follows a layered architecture with clear separation of concerns:
 - Offline-first approach with local data availability
 - Conflict resolution for synchronization issues
 - Fallback mechanisms for AI features when service unavailable
+
+## Email Handling Patterns
+
+### Email Content Handling
+
+**Content Types**:
+- Plain text email handling with proper formatting
+- HTML email rendering with security considerations
+- Mixed content handling with fallback mechanisms
+
+**Reply Formatting**:
+- Original message quotation with proper attribution
+- Date and sender information in quoted content
+- Different quotation styles for HTML vs plain text
+- Cursor positioning at logical reply location
+
+### Email Actions Framework
+
+**Server Action Pattern**:
+- Consistent structure for all email operations
+- Authentication validation as first step
+- Provider-specific operations through adapter interface
+- Structured response objects with success/error information
+- Comprehensive error handling with graceful degradation
+
+**Client Action Pattern**:
+- Loading state indication during operations
+- Optimistic UI updates with rollback capabilities
+- Toast notifications for operation feedback
+- Error display with contextual recovery options
+
+### Email Routing and Navigation
+
+**Route Structure**:
+- Consistent patterns across email categories
+- `/[category]` for list views (inbox, sent, archive)
+- `/[category]/[id]` for detail views
+- Query parameters for additional context (reply, forward)
+
+**Navigation Patterns**:
+- Preserving context during navigation
+- Back navigation with return to correct list view
+- Compose with context from originating view
+- Reply with appropriate relationship to original
 
 ## Data Models
 
@@ -240,4 +337,216 @@ UserPreferences {
 - Custom email processors
 - UI extensions
 - Integration adapters
-- Custom AI models 
+- Custom AI models
+
+## Email Identification and AI Summary Processing
+
+### Email Identification Strategy
+
+Each email is uniquely identified using a combination of provider-specific IDs and internal tracking:
+
+```
+EmailIdentifier
+├── provider_id      # Original ID from email provider (e.g., Gmail Message ID)
+├── thread_id        # Conversation thread identifier
+├── user_id          # User account identifier
+└── internal_id      # DyzBox-generated unique identifier
+```
+
+This approach ensures:
+- Emails can be uniquely identified across different providers
+- Threads/conversations can be properly grouped
+- All operations are scoped to the correct user account
+- We maintain our own stable identifiers independent of provider changes
+
+Gmail-specific considerations:
+- Gmail Message IDs are globally unique and never change
+- Gmail Thread IDs allow proper conversation grouping
+- Labels provide additional organization context
+
+### AI Summary Processing Flow
+
+The system follows a defined workflow for generating and managing AI summaries:
+
+1. **Email Selection**
+   - New emails are automatically queued for AI processing
+   - Priority is given to important senders and time-sensitive content
+   - User-flagged emails receive immediate processing
+   - Emails from certain senders or matching privacy rules can be excluded
+
+2. **Processing Pipeline**
+   ```
+   EmailProcessor
+   ├── ContentExtractor   # Extracts relevant content from email
+   ├── SummaryGenerator   # Creates concise summary using Gemini 2.0
+   ├── EntityDetector     # Identifies people, dates, action items
+   ├── IntentClassifier   # Determines email purpose/category
+   └── InsightEngine      # Generates contextual insights
+   ```
+
+3. **Storage Strategy**
+   - Summaries are stored separately from email content
+   - Processing status is tracked to handle retries and updates
+   - Version tracking for AI model improvements
+   ```
+   SummaryRecord
+   ├── email_reference    # Link to original email
+   ├── summary_text       # Generated summary (1-2 sentences)
+   ├── entities           # Extracted entities
+   ├── intent             # Classified purpose
+   ├── confidence_score   # AI confidence metric
+   ├── model_version      # AI model identifier
+   └── generated_at       # Timestamp
+   ```
+
+4. **Refresh Strategy**
+   - Summaries for ongoing threads are updated when new replies arrive
+   - Periodic reprocessing for improved AI models
+   - User feedback incorporated to improve summary quality
+   - Thread-level summaries created by combining message summaries
+
+### Privacy & Performance Considerations
+
+The system implements several patterns to balance AI capabilities with privacy and performance:
+
+1. **Processing Location Pattern**
+   ```
+   ProcessingLocationSelector
+   ├── DeviceProcessor      # On-device processing for sensitive content
+   ├── EdgeProcessor        # Edge computing for faster processing
+   └── CloudProcessor       # Cloud processing for complex operations
+   ```
+
+2. **Consent Management Pattern**
+   ```
+   AIConsentManager
+   ├── GlobalSettings       # User's default AI processing preferences
+   ├── SenderExceptions     # Specific rules for certain senders
+   ├── ContentRules         # Content-based processing decisions
+   └── TemporaryOverrides   # Time-limited processing changes
+   ```
+
+3. **Batch Processing Pattern**
+   ```
+   BatchProcessor
+   ├── PriorityQueue        # Orders emails by importance
+   ├── ResourceMonitor      # Manages system load
+   ├── RateLimiter          # Prevents API overuse
+   └── BackgroundWorker     # Processes without blocking UI
+   ```
+
+### Optimization Strategies
+
+1. **Selective Processing**
+   - Process only human-to-human emails (skip newsletters, promotions)
+   - Prioritize unread messages and new threads
+   - Focus on emails requiring action or response
+
+2. **Caching Strategy**
+   - Cache summaries for offline access
+   - Implement LRU (Least Recently Used) cache for frequently accessed emails
+   - Use incremental summary updates for thread continuations
+
+3. **Resource Management**
+   - Throttle processing during high system load
+   - Schedule bulk processing during idle periods
+   - Implement rate limiting for API calls to Gemini
+
+## Supabase Database Schema
+
+The database schema is designed to efficiently store email data and AI-generated content:
+
+```
+Table: users
+  - id (primary key, uuid)
+  - email (unique)
+  - provider_details (jsonb)
+  - preferences (jsonb)
+  - created_at (timestamp)
+  - last_active (timestamp)
+
+Table: emails
+  - id (primary key, uuid)
+  - user_id (foreign key → users.id)
+  - provider_id (string, unique per user)
+  - thread_id (string)
+  - sender (string)
+  - recipients (jsonb)
+  - subject (string)
+  - received_at (timestamp)
+  - is_read (boolean)
+  - is_starred (boolean)
+  - category_id (foreign key → categories.id)
+  - labels (array)
+  - metadata (jsonb)
+
+Table: email_contents
+  - id (primary key, uuid)
+  - email_id (foreign key → emails.id)
+  - content_type (string)
+  - content (text)
+  - attachments (jsonb)
+
+Table: email_summaries
+  - id (primary key, uuid)
+  - email_id (foreign key → emails.id)
+  - summary_text (text)
+  - entities (jsonb)
+  - action_items (jsonb)
+  - intent (string)
+  - sentiment (string)
+  - confidence_score (decimal)
+  - model_version (string)
+  - generated_at (timestamp)
+  - user_feedback (jsonb)
+
+Table: categories
+  - id (primary key, uuid)
+  - user_id (foreign key → users.id)
+  - name (string)
+  - color (string)
+  - is_system (boolean)
+  - rules (jsonb)
+
+Table: threads
+  - id (primary key, uuid)
+  - user_id (foreign key → users.id)
+  - provider_thread_id (string)
+  - subject (string)
+  - participants (jsonb)
+  - last_activity (timestamp)
+  - is_complete (boolean)
+  - summary (text)
+```
+
+## Synchronization Patterns
+
+The system implements robust synchronization to keep local data in sync with email providers:
+
+### Delta Synchronization
+Only fetches changes since last sync, reducing bandwidth and processing requirements.
+
+### Conflict Resolution
+Implements strategies for handling conflicts when changes are made both locally and on the provider side.
+
+### Background Synchronization
+Maintains up-to-date state without interrupting user experience.
+
+## AI Component Design
+
+The AI system is composed of several specialized components:
+
+### EmailClassifier
+Categorizes emails based on content and user behavior patterns.
+
+### IntentRecognizer
+Identifies the purpose of emails (request, information, introduction, etc.).
+
+### EntityExtractor
+Identifies important entities like people, dates, locations, and action items.
+
+### SummaryGenerator
+Creates concise, useful summaries of email content.
+
+### ReplyGenerator
+Creates context-aware reply suggestions that match user's tone and style. 
