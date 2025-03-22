@@ -37,6 +37,15 @@ DyzBox leverages modern web technologies for its email client implementation, fo
    - JIT compiler for optimized CSS
    - Dark mode support
    - Component-specific styling
+   - CSS keyframes for custom animations
+
+5. **Animation System**: CSS and React-based animation framework
+   - CSS keyframes for performance-optimized animations
+   - React Context for centralized animation timing
+   - UseEffect-based animation scheduling
+   - Component wrapper architecture for isolation
+   - Staggered animation timing for visual interest
+   - Performance optimization with GPU acceleration
 
 ### Backend
 
@@ -189,6 +198,148 @@ Key implementation details:
    export const config = {
      matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
    };
+   ```
+
+### Animation System Implementation
+
+The application includes a dedicated animation system for notifications and UI feedback:
+
+1. **Animation Context**: Centralized animation coordination
+   ```tsx
+   // contexts/AnimationContext.tsx
+   "use client";
+   
+   import React, { createContext, useContext, useState, useEffect } from 'react';
+   
+   interface AnimationContextType {
+     currentMinute: number;
+     animationTimestamp: number;
+   }
+   
+   const AnimationContext = createContext<AnimationContextType>({
+     currentMinute: 0,
+     animationTimestamp: 0
+   });
+   
+   export const useAnimation = () => useContext(AnimationContext);
+   
+   export function AnimationProvider({ children }) {
+     const [currentMinute, setCurrentMinute] = useState(0);
+     const [animationTimestamp, setAnimationTimestamp] = useState(0);
+     
+     useEffect(() => {
+       // Initialize and update minute counter every 60 seconds
+       const now = new Date();
+       setCurrentMinute(now.getMinutes());
+       setAnimationTimestamp(Date.now());
+       
+       const interval = setInterval(() => {
+         const now = new Date();
+         setCurrentMinute(now.getMinutes());
+         setAnimationTimestamp(Date.now());
+       }, 60000);
+       
+       return () => clearInterval(interval);
+     }, []);
+     
+     return (
+       <AnimationContext.Provider value={{ currentMinute, animationTimestamp }}>
+         {children}
+       </AnimationContext.Provider>
+     );
+   }
+   ```
+
+2. **Animation Component**: Reusable wrapper for animating elements
+   ```tsx
+   // components/JiggleWrapper.tsx
+   "use client";
+   
+   import React, { useState, useEffect } from 'react';
+   import { useAnimation } from '@/contexts/AnimationContext';
+   
+   interface JiggleWrapperProps {
+     children: React.ReactNode;
+     index: number;
+     unreadCount: number;
+     totalItems: number;
+   }
+   
+   export default function JiggleWrapper({ children, index, unreadCount, totalItems }) {
+     const [isAnimating, setIsAnimating] = useState(false);
+     const { currentMinute, animationTimestamp } = useAnimation();
+     
+     useEffect(() => {
+       // Only animate if there are unread items
+       if (unreadCount <= 0) return;
+       
+       // Calculate staggered start time
+       const staggerDelay = Math.floor((index / totalItems) * 45);
+       
+       // Start animation after staggered delay
+       const animationTimer = setTimeout(() => {
+         setIsAnimating(true);
+         
+         // End animation after 1 second
+         const endTimer = setTimeout(() => {
+           setIsAnimating(false);
+         }, 1000);
+         
+         return () => clearTimeout(endTimer);
+       }, staggerDelay * 1000);
+       
+       return () => clearTimeout(animationTimer);
+     }, [currentMinute, animationTimestamp, index, unreadCount, totalItems]);
+     
+     return (
+       <div
+         style={{
+           display: 'inline-block',
+           animation: isAnimating ? 'jiggle 1s ease' : 'none',
+           willChange: unreadCount > 0 ? 'transform' : 'auto'
+         }}
+       >
+         {children}
+       </div>
+     );
+   }
+   ```
+
+3. **CSS Keyframes**: Animation definitions in global CSS
+   ```css
+   /* app/globals.css */
+   @keyframes jiggle {
+     0%, 100% { transform: translateX(0); }
+     25% { transform: translateX(-2px) rotate(-1deg); }
+     75% { transform: translateX(2px) rotate(1deg); }
+   }
+   ```
+
+4. **Animation Usage**: Implementation in components
+   ```tsx
+   // In Sidebar.tsx
+   return (
+     <li key={category.id}>
+       <Link href={`/label/${encodeURIComponent(category.id)}`}>
+         <JiggleWrapper
+           index={index}
+           unreadCount={unreadCount}
+           totalItems={categoryLabels.length}
+         >
+           <div style={{ display: 'inline-block' }}>
+             <Folder className="h-3.5 w-3.5" />
+           </div>
+         </JiggleWrapper>
+         
+         <span>{category.displayName}</span>
+         {unreadCount > 0 && (
+           <span className="ml-auto bg-blue-100 text-blue-700 rounded-full text-[10px] px-1.5 py-0.5 font-medium">
+             {unreadCount}
+           </span>
+         )}
+       </Link>
+     </li>
+   );
    ```
 
 ### Tailwind CSS Configuration

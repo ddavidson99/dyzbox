@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/Header";
 import Providers from "./Providers";
 import { Toaster } from 'react-hot-toast';
 import { SidebarProvider } from "@/components/layout/SidebarContext";
+import { AnimationProvider } from "@/contexts/AnimationContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,15 +25,17 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.className} antialiased bg-background text-foreground`}>
         <Providers>
-          <SidebarProvider>
-            <div className="flex flex-col h-screen">
-              <Header />
-              <div className="flex flex-1 overflow-hidden relative">
-                <Sidebar />
-                <main className="flex-1 overflow-auto">{children}</main>
+          <AnimationProvider>
+            <SidebarProvider>
+              <div className="flex flex-col h-screen">
+                <Header />
+                <div className="flex flex-1 overflow-hidden relative">
+                  <Sidebar />
+                  <main className="flex-1 overflow-auto">{children}</main>
+                </div>
               </div>
-            </div>
-          </SidebarProvider>
+            </SidebarProvider>
+          </AnimationProvider>
           <Toaster position="top-right" />
         </Providers>
       </body>

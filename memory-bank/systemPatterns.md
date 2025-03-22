@@ -82,6 +82,13 @@ DyzBox implements a hybrid communication architecture:
    - Optimizes for performance in email operations
    - Supports complex querying for email organization
 
+5. **Animation System Architecture**
+   - Context provider pattern for centralized animation timing
+   - Component wrapper pattern for isolated animation behavior
+   - Staggered execution pattern for visual interest and performance
+   - CSS keyframe animation for GPU-accelerated performance
+   - Adaptive rendering based on unread state
+
 ## Authentication & User Identity Strategy
 
 DyzBox uses a provider-based authentication strategy with a unified user identity system:
@@ -249,20 +256,192 @@ This authentication strategy provides a streamlined user experience with a singl
 - Context-preserving transitions between related views
 - Stateful components that maintain user selections
 
-### 4. Data Management System
+### 4. Notification System
 
-**Purpose**: Handles persistence, caching, and synchronization of application data
+**Purpose**: Provides visual cues to draw user attention to important email events
 
 **Key Patterns**:
-- Repository pattern for data access
-- Unit of Work for transaction management
-- Cache-aside pattern for performance
+- Context Provider pattern for centralized animation state
+- Component Wrapper pattern for isolated animation effects
+- Staggered Execution pattern for distributed notifications
+- Throttled Animation pattern for performance optimization
 
 **Components**:
-- `UserPreferencesRepository` - Stores user settings and preferences
-- `EmailRepository` - Manages email data and state
-- `CategoryRepository` - Handles email categorization rules and assignments
-- `SyncEngine` - Coordinates data synchronization across devices
+- `AnimationContext` - Shared timing and coordination service
+- `JiggleWrapper` - Component wrapper for animated UI elements
+- `UnreadCountBadge` - Visual indicator for message counts
+- `NotificationScheduler` - Manages timing of periodic animations
+
+**Animation Architecture**:
+```
+┌───────────────────────────┐
+│     AnimationProvider     │
+│  (Minute-based Scheduler) │
+└─────────────┬─────────────┘
+              │
+              ▼
+┌───────────────────────────┐
+│     Animation Context     │
+│  (Shared Animation State) │
+└─────────────┬─────────────┘
+              │
+              ▼
+┌───────────────────────────┐
+│     Component Wrappers    │
+│  (JiggleWrapper, etc.)    │
+└─────────────┬─────────────┘
+              │
+              ▼
+┌───────────────────────────┐
+│      Target Elements      │
+│  (Icons, Badges, etc.)    │
+└───────────────────────────┘
+```
+
+**Design Principles**:
+- Subtle animations that draw attention without distraction
+- Performance-optimized with CSS keyframes and GPU acceleration
+- Clear visual indicators that complement animations
+- Staggered timing to create visual interest
+- Animation limited to non-text elements for readability
+
+**Implementation Approach**:
+- CSS keyframes for performance-optimized animations
+- React.useEffect for timing and animation triggers
+- Component-based architecture for reusable animation patterns
+- Context API for coordination across components
+- Conditionally applied animations based on unread state
+
+## User Interface Patterns
+
+### Email Organization Pattern
+
+DyzBox organizes emails using a consistent pattern across views:
+
+1. **Two-Pane Layout**
+   - Email list on left (resizable width)
+   - Email detail on right
+   - Draggable splitter for width adjustment
+   - Responsive design for different screen sizes
+
+2. **List and Detail Views**
+   - Common pattern across inbox, sent, archive, etc.
+   - List shows summary information
+   - Detail shows complete email content
+   - State preserved during navigation
+
+3. **Category-Based Navigation**
+   - Primary categories in main navigation
+   - User-defined labels/tags for organization
+   - Visual cues for unread/important emails
+   - Smart categorization using AI
+
+### Attention Management Patterns
+
+DyzBox uses specific patterns to help users focus on important emails:
+
+1. **Unread Item Highlighting**
+   - Distinct visual treatment for unread emails
+   - Clear indication of unread state in lists
+   - Count indicators in navigation elements
+   - Animated icons for categories with unread messages
+
+2. **Animation Usage Guidelines**
+   - Subtle animations limited to 1 second duration
+   - Only applied to icons and non-text elements
+   - Staggered timing to prevent distraction
+   - Triggered on specific events (new emails) and periodic intervals
+   - GPU-accelerated animations for performance
+
+3. **Visual Priority System**
+   - Important emails receive stronger visual emphasis
+   - AI-determined priority reflected in UI
+   - User-defined importance honored
+   - Consistent visual language across app
+
+4. **Focus Assistance**
+   - Smart inbox shows human-to-human messages first
+   - Promotional and system emails categorized separately
+   - Keyboard shortcuts for rapid triage
+   - Contextual commands based on email type
+
+### Component Architecture
+
+DyzBox uses atomic design methodology for UI components:
+
+1. **Atoms**
+   - Buttons, inputs, icons
+   - Typography elements
+   - Form controls
+   - Animation wrappers
+
+2. **Molecules**
+   - Email list items
+   - Form groups
+   - Search components
+   - Navigation items with notification badges
+
+3. **Organisms**
+   - Email lists with headers and actions
+   - Navigation sidebar with categories
+   - Email detail view with actions
+   - Compose form with attachments
+
+4. **Templates**
+   - Two-pane email layout
+   - Settings layouts
+   - Authentication screens
+   - Onboarding flows
+
+5. **Pages**
+   - Inbox view
+   - Category/label views
+   - Settings pages
+   - Account management
+
+### Responsive Design Pattern
+
+DyzBox adapts its UI for different screen sizes:
+
+1. **Desktop Focus**
+   - Two-pane layout with resizable panels
+   - Keyboard shortcuts for power users
+   - Information density optimized for productivity
+   - Full feature access
+
+2. **Tablet Adaptation**
+   - Collapsible panels for space efficiency
+   - Touch-friendly targets
+   - Simplified layouts
+   - Context-aware features
+
+3. **Mobile Approach**
+   - Single-pane views with navigation between list and detail
+   - Bottom navigation for key actions
+   - Limited feature set focused on reading and triage
+   - Touch-optimized UI
+
+### Error Handling Pattern
+
+DyzBox implements consistent error handling across the UI:
+
+1. **Operation Feedback**
+   - Clear success/failure indicators
+   - Non-blocking notifications
+   - Context-specific error messages
+   - Retry options for failed operations
+
+2. **Graceful Degradation**
+   - Fallback UI for unavailable features
+   - Offline capability where possible
+   - Progressive enhancement approach
+   - Helpful guidance when operations fail
+
+3. **Recovery Patterns**
+   - Automatic retry for transient failures
+   - Clear user guidance for persistent issues
+   - Data preservation during errors
+   - Session recovery mechanisms
 
 ## Cross-Cutting Concerns
 

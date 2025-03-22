@@ -16,9 +16,10 @@ import {
   PlusCircle, 
   Folder 
 } from "@phosphor-icons/react";
-import { getLabels, createLabel } from "@/app/actions/email";
+import { getLabels, createLabel, getUnreadCounts } from "@/app/actions/email";
 import { toast } from "react-hot-toast";
 import { useSidebar } from "./SidebarContext";
+import JiggleWrapper from "@/components/JiggleWrapper";
 
 type Label = {
   id: string;
@@ -67,6 +68,8 @@ export function Sidebar() {
   const [expandedLabels, setExpandedLabels] = useState<Record<string, boolean>>({});
   const [showCategories, setShowCategories] = useState(true);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [refreshCount, setRefreshCount] = useState<number>(0);
 
   // Close sidebar when clicking outside
   useEffect(() => {
@@ -124,6 +127,29 @@ export function Sidebar() {
 
     fetchLabels();
   }, []);
+
+  // Add new effect to fetch unread counts
+  useEffect(() => {
+    async function fetchUnreadCounts() {
+      try {
+        const response = await getUnreadCounts();
+        if (response.success && response.counts) {
+          setUnreadCounts(response.counts);
+        }
+      } catch (error) {
+        console.error("Error fetching unread counts:", error);
+      }
+    }
+
+    fetchUnreadCounts();
+    
+    // Refresh counts every minute
+    const interval = setInterval(() => {
+      setRefreshCount(prev => prev + 1);
+    }, 60000);
+    
+    return () => clearInterval(interval);
+  }, [refreshCount]);
 
   // Create a hierarchical structure from labels with slashes
   const organizeLabelsHierarchy = () => {
@@ -342,21 +368,39 @@ export function Sidebar() {
             
             {showCategories && (
               <ul className="space-y-0.5 mb-2">
-                {categoryLabels.map((category) => (
-                  <li key={category.id}>
-                    <Link 
-                      href={`/label/${encodeURIComponent(category.id)}`}
-                      className={cn(
-                        "flex w-full items-center gap-2 rounded-lg px-2 py-1 text-gray-700 transition-all hover:text-gray-900 hover:bg-gray-100 text-xs relative z-30",
-                        pathname === `/label/${encodeURIComponent(category.id)}` ? "bg-gray-100 text-gray-900 font-medium" : "bg-white"
-                      )}
-                      onClick={() => closeSidebar()}
-                    >
-                      <Folder className="h-3.5 w-3.5" />
-                      <span>{category.displayName}</span>
-                    </Link>
-                  </li>
-                ))}
+                {categoryLabels.map((category, index) => {
+                  const unreadCount = unreadCounts[category.id] || 0;
+                  
+                  return (
+                    <li key={category.id}>
+                      <Link 
+                        href={`/label/${encodeURIComponent(category.id)}`}
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded-lg px-2 py-1 text-gray-700 transition-all hover:text-gray-900 hover:bg-gray-100 text-xs relative z-30",
+                          pathname === `/label/${encodeURIComponent(category.id)}` ? "bg-gray-100 text-gray-900 font-medium" : "bg-white"
+                        )}
+                        onClick={() => closeSidebar()}
+                      >
+                        <JiggleWrapper
+                          index={index}
+                          unreadCount={unreadCount}
+                          totalItems={categoryLabels.length}
+                        >
+                          <div style={{ display: 'inline-block' }}>
+                            <Folder className="h-3.5 w-3.5" />
+                          </div>
+                        </JiggleWrapper>
+                        
+                        <span>{category.displayName}</span>
+                        {unreadCount > 0 && (
+                          <span className="ml-auto bg-blue-100 text-blue-700 rounded-full text-[10px] px-1.5 py-0.5 font-medium">
+                            {unreadCount}
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </>

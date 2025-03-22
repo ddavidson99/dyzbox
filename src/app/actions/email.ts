@@ -266,4 +266,53 @@ export async function createLabel(name: string) {
       error: error instanceof Error ? error.message : 'Failed to create label'
     };
   }
+}
+
+export async function getUnreadCounts() {
+  try {
+    const session = await auth();
+    if (!session?.accessToken) {
+      return { success: false, error: 'Not authenticated', counts: {} };
+    }
+    
+    const provider = new GmailProvider(session.accessToken as string);
+    const emailService = new EmailService(provider);
+    
+    // Get all labels first
+    const labelsResult = await emailService.getLabels();
+    const labelIds = labelsResult.map(label => label.id);
+    
+    // Create an object to store counts
+    const counts: Record<string, number> = {};
+    
+    // Get unread counts for each label
+    await Promise.all(
+      labelIds.map(async (labelId) => {
+        try {
+          // Get only unread emails for this label
+          const result = await provider.fetchEmails({ 
+            labelIds: [labelId, 'UNREAD'],
+            // maxResults: 999 // Removed due to type error
+          });
+          
+          counts[labelId] = result.emails?.length || 0;
+        } catch (err) {
+          console.error(`Error getting unread count for ${labelId}:`, err);
+          counts[labelId] = 0;
+        }
+      })
+    );
+    
+    return { 
+      success: true, 
+      counts
+    };
+  } catch (error) {
+    console.error('Error fetching unread counts:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to fetch unread counts',
+      counts: {}
+    };
+  }
 } 

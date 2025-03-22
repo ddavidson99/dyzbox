@@ -5,11 +5,14 @@ import { useSession } from 'next-auth/react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Email } from '@/lib/email/providers/EmailProvider';
 import { Tag } from 'lucide-react';
-import { Folder, Tag as TagIcon } from '@phosphor-icons/react';
+import { Folder, Tag as TagIcon, ArrowBendUpLeft, ArrowsClockwise, ArrowSquareOut, X, CaretLeft, CaretRight } from '@phosphor-icons/react';
 import { getEmailsByLabel, getLabels } from '@/app/actions/email';
 import { GmailProvider } from '@/lib/email/providers/GmailProvider';
 import { EmailService } from '@/lib/email/emailService';
 import EmailActions from '@/components/EmailActions';
+
+// Estimate of email list item height in pixels - reduced for better space utilization
+const EMAIL_ITEM_HEIGHT = 55;
 
 export default function LabelPage() {
   const { data: session } = useSession();
@@ -27,6 +30,11 @@ export default function LabelPage() {
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   
+  // Pagination state
+  const EMAILS_PER_PAGE = 5;
+  const [unreadPage, setUnreadPage] = useState(1);
+  const [readPage, setReadPage] = useState(1);
+  
   // Splitter state
   const [leftPaneWidth, setLeftPaneWidth] = useState(40); // 40% as default for email list
   const [isDragging, setIsDragging] = useState(false);
@@ -35,6 +43,64 @@ export default function LabelPage() {
   
   // Get selected email ID from URL or state
   const selectedEmailId = searchParams.get('id') || (selectedEmail?.id || null);
+  
+  // Calculate unread and read emails for pagination
+  const unreadEmails = emails.filter(email => !email.isRead);
+  const readEmails = emails.filter(email => email.isRead);
+  
+  // Add new refs for measuring containers
+  const unreadContainerRef = useRef<HTMLDivElement>(null);
+  const readContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Update pagination state
+  const [unreadItemsPerPage, setUnreadItemsPerPage] = useState(5);
+  const [readItemsPerPage, setReadItemsPerPage] = useState(5);
+  
+  // Calculate pagination values
+  const unreadTotalPages = Math.ceil(unreadEmails.length / unreadItemsPerPage);
+  const readTotalPages = Math.ceil(readEmails.length / readItemsPerPage);
+  
+  const currentUnreadEmails = unreadEmails.slice(
+    (unreadPage - 1) * unreadItemsPerPage,
+    unreadPage * unreadItemsPerPage
+  );
+  
+  const currentReadEmails = readEmails.slice(
+    (readPage - 1) * readItemsPerPage,
+    readPage * readItemsPerPage
+  );
+  
+  // Function to calculate items per page based on container height
+  const calculateItemsPerPage = () => {
+    if (!containerRef.current) return;
+    
+    const containerHeight = containerRef.current.clientHeight;
+    const emailListHeight = containerHeight - 100; // Subtract header and padding
+    
+    // 60% for unread, 40% for read
+    const unreadHeight = emailListHeight * 0.6;
+    const readHeight = emailListHeight * 0.4;
+    
+    // Calculate how many items can fit in each section, adding a buffer to maximize space
+    // Add 0.9 to round up more aggressively and fill available space
+    const unreadItems = Math.max(1, Math.floor(unreadHeight / EMAIL_ITEM_HEIGHT + 0.9));
+    const readItems = Math.max(1, Math.floor(readHeight / EMAIL_ITEM_HEIGHT + 0.9));
+    
+    setUnreadItemsPerPage(unreadItems);
+    setReadItemsPerPage(readItems);
+  };
+  
+  // Add calculation effect
+  useEffect(() => {
+    calculateItemsPerPage();
+    
+    const handleResize = () => {
+      calculateItemsPerPage();
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   useEffect(() => {
     async function fetchLabelName() {
@@ -90,6 +156,12 @@ export default function LabelPage() {
       fetchEmails();
     }
   }, [session, labelId]);
+  
+  // Reset pagination when emails change
+  useEffect(() => {
+    setUnreadPage(1);
+    setReadPage(1);
+  }, [emails]);
 
   // Fetch selected email details when ID changes
   useEffect(() => {
@@ -210,6 +282,30 @@ export default function LabelPage() {
     router.push(composeUrl);
   };
 
+  const handleReplyAll = () => {
+    if (!selectedEmail) return;
+    
+    // Create a URL with query parameters for pre-filling the compose form
+    const composeUrl = `/inbox/compose?replyAll=true&to=${encodeURIComponent(
+      selectedEmail.from.name ? `${selectedEmail.from.name} <${selectedEmail.from.email}>` : selectedEmail.from.email
+    )}&subject=${encodeURIComponent(
+      selectedEmail.subject.startsWith('Re:') ? selectedEmail.subject : `Re: ${selectedEmail.subject}`
+    )}&emailId=${encodeURIComponent(selectedEmail.id)}`;
+    
+    router.push(composeUrl);
+  };
+
+  const handleForward = () => {
+    if (!selectedEmail) return;
+    
+    // Create a URL with query parameters for pre-filling the compose form
+    const composeUrl = `/inbox/compose?forward=true&subject=${encodeURIComponent(
+      selectedEmail.subject.startsWith('Fwd:') ? selectedEmail.subject : `Fwd: ${selectedEmail.subject}`
+    )}&emailId=${encodeURIComponent(selectedEmail.id)}`;
+    
+    router.push(composeUrl);
+  };
+
   const handleActionComplete = () => {
     // Close the email and refresh the inbox
     setSelectedEmail(null);
@@ -234,14 +330,46 @@ export default function LabelPage() {
         className="overflow-y-auto border-r"
         style={{ width: selectedEmail ? `${leftPaneWidth}%` : '100%' }}
       >
-        <div className="p-4">
+        <div className="p-4 h-full flex flex-col">
           <div className="flex items-center mb-4">
             {labelId.startsWith('CATEGORY_') ? (
               <Folder size={20} className="mr-2 text-gray-600" weight="light" />
             ) : (
               <TagIcon size={20} className="mr-2 text-gray-600" weight="light" />
             )}
-            <h2 className="text-lg font-semibold">{displayName}</h2>
+            <h2 className="text-lg font-semibold">
+              {displayName}
+              {!loading && (
+                <span className="text-sm font-normal text-gray-500 ml-2">
+                  ({unreadEmails.length} unread)
+                </span>
+              )}
+            </h2>
+            
+            {/* Add pagination controls for unread emails */}
+            {unreadTotalPages > 1 && (
+              <div className="flex items-center text-xs ml-auto mr-2">
+                <button 
+                  onClick={() => setUnreadPage(p => Math.max(1, p - 1))}
+                  disabled={unreadPage === 1}
+                  className={`p-1 rounded ${unreadPage === 1 ? 'text-gray-300' : 'text-gray-500 hover:bg-gray-100'}`}
+                  aria-label="Previous page"
+                >
+                  <CaretLeft size={14} weight="bold" />
+                </button>
+                <span className="mx-2 text-gray-600">
+                  {unreadPage} / {unreadTotalPages}
+                </span>
+                <button 
+                  onClick={() => setUnreadPage(p => Math.min(unreadTotalPages, p + 1))}
+                  disabled={unreadPage === unreadTotalPages}
+                  className={`p-1 rounded ${unreadPage === unreadTotalPages ? 'text-gray-300' : 'text-gray-500 hover:bg-gray-100'}`}
+                  aria-label="Next page"
+                >
+                  <CaretRight size={14} weight="bold" />
+                </button>
+              </div>
+            )}
           </div>
           
           {loading && (
@@ -259,50 +387,156 @@ export default function LabelPage() {
           {!loading && emails.length === 0 && !error ? (
             <p className="text-sm text-gray-500">No emails found with this label</p>
           ) : (
-            <ul className="space-y-1">
-              {emails.map((email) => (
-                <li key={email.id}>
-                  <button 
-                    onClick={() => handleEmailSelect(email)}
-                    className={`block w-full text-left p-2 rounded cursor-pointer text-xs hover:bg-gray-100 
-                      ${!email.isRead ? 'font-semibold bg-blue-50' : ''}
-                      ${selectedEmailId === email.id ? 'bg-blue-100' : ''}`}
-                  >
-                    <div className="flex justify-between">
-                      <div className="font-medium truncate">{email.from.name || email.from.email}</div>
-                      <div className="text-xs text-gray-500 ml-2 whitespace-nowrap">
-                        {(() => {
-                          const emailDate = new Date(email.receivedAt);
-                          const today = new Date();
-                          
-                          // Check if the email was received today
-                          const isToday = 
-                            emailDate.getDate() === today.getDate() &&
-                            emailDate.getMonth() === today.getMonth() &&
-                            emailDate.getFullYear() === today.getFullYear();
-                          
-                          if (isToday) {
-                            // Show time for today's emails
-                            return emailDate.toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            });
-                          } else {
-                            // Show date for older emails
-                            return emailDate.toLocaleDateString([], {
-                              month: 'short',
-                              day: 'numeric'
-                            });
-                          }
-                        })()}
-                      </div>
+            <div className="flex flex-col h-full">
+              {/* Unread emails section - 60% of available height */}
+              {unreadEmails.length > 0 && (
+                <div ref={unreadContainerRef} className="flex-grow" style={{ maxHeight: '60%' }}>
+                  <div className="h-full flex flex-col">
+                    <div className="overflow-y-auto flex-grow">
+                      <ul className="space-y-1">
+                        {currentUnreadEmails.map((email) => (
+                          <li key={email.id}>
+                            <button 
+                              onClick={() => handleEmailSelect(email)}
+                              className={`block w-full text-left p-2 rounded cursor-pointer text-xs hover:bg-gray-100 
+                                font-semibold bg-gray-50 bg-opacity-80 border-l-2 border-blue-200
+                                ${selectedEmailId === email.id ? 'bg-gray-100' : ''}`}
+                            >
+                              <div className="grid grid-cols-[16.625%_83.375%] gap-2">
+                                {/* First column - Sender name aligned to top */}
+                                <div className="self-start font-medium truncate">{email.from.name || email.from.email}</div>
+                                
+                                {/* Second column - Email content and date */}
+                                <div className="flex flex-col">
+                                  <div className="flex justify-between mb-1">
+                                    <div className="text-xs font-semibold truncate">{email.subject}</div>
+                                    <div className="text-xs text-gray-500 ml-2 whitespace-nowrap">
+                                      {(() => {
+                                        const emailDate = new Date(email.receivedAt);
+                                        const today = new Date();
+                                        
+                                        // Check if the email was received today
+                                        const isToday = 
+                                          emailDate.getDate() === today.getDate() &&
+                                          emailDate.getMonth() === today.getMonth() &&
+                                          emailDate.getFullYear() === today.getFullYear();
+                                        
+                                        if (isToday) {
+                                          // Show time for today's emails
+                                          return emailDate.toLocaleTimeString([], {
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                          });
+                                        } else {
+                                          // Show date for older emails
+                                          return emailDate.toLocaleDateString([], {
+                                            month: 'short',
+                                            day: 'numeric'
+                                          });
+                                        }
+                                      })()}
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-gray-600 truncate">{email.snippet}</div>
+                                </div>
+                              </div>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    <div className="text-xs font-semibold truncate">{email.subject}</div>
-                    <div className="text-xs text-gray-600 truncate">{email.snippet}</div>
-                  </button>
-                </li>
-              ))}
-            </ul>
+                  </div>
+                </div>
+              )}
+              
+              {/* Read emails section - 40% of available height */}
+              {readEmails.length > 0 && (
+                <div ref={readContainerRef} style={{ maxHeight: '40%' }} className="mt-3">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-sm font-medium text-gray-500">Previously Seen</h3>
+                    {readTotalPages > 1 && (
+                      <div className="flex items-center text-xs">
+                        <button 
+                          onClick={() => setReadPage(p => Math.max(1, p - 1))}
+                          disabled={readPage === 1}
+                          className={`p-1 rounded ${readPage === 1 ? 'text-gray-300' : 'text-gray-500 hover:bg-gray-100'}`}
+                          aria-label="Previous page"
+                        >
+                          <CaretLeft size={14} weight="bold" />
+                        </button>
+                        <span className="mx-2 text-gray-600">
+                          {readPage} / {readTotalPages}
+                        </span>
+                        <button 
+                          onClick={() => setReadPage(p => Math.min(readTotalPages, p + 1))}
+                          disabled={readPage === readTotalPages}
+                          className={`p-1 rounded ${readPage === readTotalPages ? 'text-gray-300' : 'text-gray-500 hover:bg-gray-100'}`}
+                          aria-label="Next page"
+                        >
+                          <CaretRight size={14} weight="bold" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Add horizontal rule */}
+                  <hr className="border-t border-gray-200 mb-2" />
+                  
+                  <div className="overflow-y-auto" style={{ maxHeight: 'calc(100% - 30px)' }}>
+                    <ul className="space-y-1">
+                      {currentReadEmails.map((email) => (
+                        <li key={email.id}>
+                          <button 
+                            onClick={() => handleEmailSelect(email)}
+                            className={`block w-full text-left p-2 rounded cursor-pointer text-xs hover:bg-gray-100 
+                              ${selectedEmailId === email.id ? 'bg-gray-100' : ''}`}
+                          >
+                            <div className="grid grid-cols-[16.625%_83.375%] gap-2">
+                              {/* First column - Sender name aligned to top */}
+                              <div className="self-start font-medium truncate">{email.from.name || email.from.email}</div>
+                              
+                              {/* Second column - Email content and date */}
+                              <div className="flex flex-col">
+                                <div className="flex justify-between mb-1">
+                                  <div className="text-xs font-semibold truncate">{email.subject}</div>
+                                  <div className="text-xs text-gray-500 ml-2 whitespace-nowrap">
+                                    {(() => {
+                                      const emailDate = new Date(email.receivedAt);
+                                      const today = new Date();
+                                      
+                                      // Check if the email was received today
+                                      const isToday = 
+                                        emailDate.getDate() === today.getDate() &&
+                                        emailDate.getMonth() === today.getMonth() &&
+                                        emailDate.getFullYear() === today.getFullYear();
+                                      
+                                      if (isToday) {
+                                        // Show time for today's emails
+                                        return emailDate.toLocaleTimeString([], {
+                                          hour: '2-digit',
+                                          minute: '2-digit'
+                                        });
+                                      } else {
+                                        // Show date for older emails
+                                        return emailDate.toLocaleDateString([], {
+                                          month: 'short',
+                                          day: 'numeric'
+                                        });
+                                      }
+                                    })()}
+                                  </div>
+                                </div>
+                                <div className="text-xs text-gray-600 truncate">{email.snippet}</div>
+                              </div>
+                            </div>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -376,39 +610,78 @@ export default function LabelPage() {
                 <div className="flex space-x-2">
                   <button
                     onClick={handleReply}
-                    className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 border border-blue-600 rounded hover:bg-blue-50"
+                    className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 border border-blue-600 rounded hover:bg-blue-50 flex items-center"
+                    title="Reply"
                   >
-                    Reply
+                    <ArrowBendUpLeft size={16} weight="regular" className="mr-1" />
+                    <span>Reply</span>
+                  </button>
+                  
+                  <button
+                    onClick={handleReplyAll}
+                    className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 border border-blue-600 rounded hover:bg-blue-50 flex items-center"
+                    title="Reply All"
+                  >
+                    <ArrowsClockwise size={16} weight="regular" className="mr-1" />
+                    <span>Reply All</span>
+                  </button>
+
+                  <button
+                    onClick={handleForward}
+                    className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 border border-blue-600 rounded hover:bg-blue-50 flex items-center"
+                    title="Forward"
+                  >
+                    <ArrowSquareOut size={16} weight="regular" className="mr-1" />
+                    <span>Forward</span>
                   </button>
                   
                   <button
                     onClick={handleCloseEmail}
                     className="text-gray-500 hover:text-gray-700 text-sm px-2 py-1"
+                    title="Close"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
+                    <X size={20} weight="regular" />
                   </button>
                 </div>
               </div>
               
               <div className="p-4">
-                <EmailActions 
-                  emailId={selectedEmail.id} 
-                  isRead={true}
-                  onActionComplete={handleActionComplete} 
-                />
-                
-                <div className="mt-4 border-t pt-4">
-                  {selectedEmail.bodyHtml ? (
-                    <div 
-                      className="prose max-w-none text-sm" 
-                      dangerouslySetInnerHTML={{ __html: selectedEmail.bodyHtml }} 
+                <div className="flex justify-between items-start mb-2">
+                  <h1 className="text-xl font-semibold">{selectedEmail.subject}</h1>
+                  <div className="flex space-x-1">
+                    <EmailActions 
+                      emailId={selectedEmail.id} 
+                      isRead={selectedEmail.isRead} 
+                      onActionComplete={() => {
+                        // Reload emails after action
+                        if (session?.accessToken) {
+                          // Use existing getEmailsByLabel function to refresh emails
+                          getEmailsByLabel(labelId).then(response => {
+                            if (response.success) {
+                              setEmails(response.emails || []);
+                            }
+                          });
+                        }
+                        // Return to label view
+                        router.push(`/label/${encodeURIComponent(labelId)}`);
+                      }} 
                     />
+                    <button 
+                      onClick={() => router.push(`/label/${encodeURIComponent(labelId)}`)}
+                      className="text-gray-500 hover:text-gray-700 p-1 rounded hover:bg-gray-100"
+                      title="Close"
+                    >
+                      <X size={18} weight="regular" />
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Email body */}
+                <div className="p-6 flex-1 overflow-y-auto">
+                  {selectedEmail.bodyHtml ? (
+                    <div dangerouslySetInnerHTML={{ __html: selectedEmail.bodyHtml }} />
                   ) : (
-                    <pre className="whitespace-pre-wrap text-gray-800 text-sm">
-                      {selectedEmail.bodyText || selectedEmail.body}
-                    </pre>
+                    <pre className="whitespace-pre-wrap font-sans">{selectedEmail.bodyText || selectedEmail.body}</pre>
                   )}
                 </div>
                 

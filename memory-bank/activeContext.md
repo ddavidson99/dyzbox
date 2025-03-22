@@ -13,7 +13,8 @@ The DyzBox project is currently in the initial implementation phase. We've estab
 7. **Error Handling**: Improving resilience with better error handling in API calls and server actions.
 8. **Email Workflow Expansion**: Implementing complete email workflow features including sent mail viewing, reply functionality with quoted text, and compose capabilities.
 9. **UI Consistency**: Ensuring consistent UI behavior across different views (inbox, labels).
-10. **Multi-Provider Strategy**: Designing the foundation for supporting both Gmail and Outlook while maintaining a unified user identity.
+10. **Notification Features**: Implementing visual indicators for unread messages and attention-grabbing animations.
+11. **Multi-Provider Strategy**: Designing the foundation for supporting both Gmail and Outlook while maintaining a unified user identity.
 
 ## Recent Decisions
 
@@ -38,7 +39,8 @@ The DyzBox project is currently in the initial implementation phase. We've estab
 19. **Email Branding**: Added automatic "Sent with DYZBOX" signature to all outgoing emails.
 20. **Space Optimization**: Reduced sidebar font sizes for a more compact view and better space utilization.
 21. **UI Consistency**: Created consistent email viewing experience across inbox and label pages.
-22. **Authentication Strategy**: Decided on provider-based authentication (OAuth) with account linking for multiple email providers, using a single user identity in our system.
+22. **Visual Notification System**: Implemented subtle animation for categories with unread messages, making only the category icons "jiggle" to draw user attention while maintaining text readability.
+23. **Authentication Strategy**: Decided on provider-based authentication (OAuth) with account linking for multiple email providers, using a single user identity in our system.
 
 ## Current Challenges
 
@@ -55,9 +57,10 @@ The DyzBox project is currently in the initial implementation phase. We've estab
 11. **Email Content Formatting**: Ensuring proper handling of both HTML and plain text email content across various email operations.
 12. **Navigation Flow**: Creating intuitive navigation patterns between email views and maintaining context during transitions.
 13. **Consistent UI**: Ensuring consistent behavior of resizable panels and email views across different parts of the application.
-14. **Mobile Responsiveness**: Adapting the resizable two-pane layout for mobile devices.
-15. **Multi-Provider Authentication**: Designing a system that supports both Gmail and Outlook authentication while maintaining a unified user experience.
-16. **User Identity Management**: Implementing a system that links multiple provider accounts to a single DyzBox user identity.
+14. **Animation Performance**: Balancing visual attention-grabbing features with performance considerations.
+15. **Mobile Responsiveness**: Adapting the resizable two-pane layout for mobile devices.
+16. **Multi-Provider Authentication**: Designing a system that supports both Gmail and Outlook authentication while maintaining a unified user experience.
+17. **User Identity Management**: Implementing a system that links multiple provider accounts to a single DyzBox user identity.
 
 ## Implementation Strategy
 
@@ -73,6 +76,7 @@ The development approach follows a phased implementation plan:
 - Adding robust error handling to provide a better user experience
 - Building complete email workflow with inbox, sent mail, compose, and reply functionality
 - Ensuring consistent UI behavior across different views
+- Implementing notification features to draw attention to unread messages
 - Creating the database schema for user identity and provider linking
 
 ### Next Phase: Enhanced AI Features & Multi-Provider Support (Q2 2025)
@@ -94,8 +98,9 @@ The development approach follows a phased implementation plan:
 6. **Mobile Responsiveness**: Ensure the UI works well on mobile devices
 7. **Error Handling**: Continue improving error handling across all components
 8. **UI Refinement**: Further refine the resizable panel experience and interactions
-9. **User Identity Schema**: Implement the database schema for user identity and provider linking
-10. **Account Linking UI**: Design the interface for users to link multiple email accounts
+9. **Notification Features**: Expand the animation system to other notifications beyond unread count
+10. **User Identity Schema**: Implement the database schema for user identity and provider linking
+11. **Account Linking UI**: Design the interface for users to link multiple email accounts
 
 ## Technical Insights
 
@@ -161,7 +166,15 @@ The development approach follows a phased implementation plan:
     - Made UI components reusable across different parts of the application
     - Optimized space usage with compact sidebar and appropriate font sizes
 
-11. **Multi-Provider Authentication Strategy**: We've designed a provider-based authentication approach:
+11. **Animation System Implementation**: We've created a notification system for unread messages:
+    - CSS keyframe animations for performance-optimized jiggle effect
+    - React context provider for centralized animation timing
+    - Component wrappers that apply animations only to non-text elements
+    - Staggered animation start times to prevent all elements animating simultaneously
+    - Scheduled animations that run at regular intervals but only for short durations
+    - Visual unread count badges complementing the animation system
+
+12. **Multi-Provider Authentication Strategy**: We've designed a provider-based authentication approach:
     - Users authenticate with either Google or Microsoft through OAuth
     - Primary provider identity stored in our database as the user identifier
     - Ability to link additional email providers to the same user identity
@@ -182,14 +195,16 @@ The development approach follows a phased implementation plan:
 10. How can we optimize performance while maintaining a robust error handling approach?
 11. How can we make the resizable two-pane layout work effectively on mobile devices?
 12. What's the best approach for maintaining UI state during navigation between different views?
-13. What's the most secure way to store and refresh OAuth tokens for multiple providers?
-14. How should we handle the situation where a user's provider OAuth access is revoked?
+13. How can we expand the animation system to include other types of notifications?
+14. What's the most secure way to store and refresh OAuth tokens for multiple providers?
+15. How should we handle the situation where a user's provider OAuth access is revoked?
 
 ## Current Team Focus
 
 - **Frontend Team**: Refining UI components and implementing resizable two-pane layout
 - **API Integration**: Connecting to Gmail API and handling authentication
 - **UX Team**: Improving the user interface with better spacing and responsive design
+- **Animation Team**: Implementing subtle visual notifications for unread messages
 - **Backend Planning**: Preparing for server-side components and data storage
 - **AI Team**: Designing the AI processing pipeline for email summarization
 - **DevOps**: Setting up the infrastructure for Next.js and Python microservices
@@ -222,5 +237,167 @@ The development approach follows a phased implementation plan:
 10. Our error handling approach will be robust enough to handle most API and network failures
 11. The automatic signature approach will enhance brand recognition without impacting user experience
 12. The intelligent date formatting will provide context-relevant information to users
-13. Users will prefer OAuth-based authentication over creating separate DyzBox credentials
-14. Provider-based authentication with account linking will provide the optimal balance of security and user experience
+13. The subtle animation for unread messages will draw attention without being distracting
+14. Users will prefer OAuth-based authentication over creating separate DyzBox credentials
+15. Provider-based authentication with account linking will provide the optimal balance of security and user experience
+
+## Recent Changes
+
+Recent development has focused on:
+
+1. Design and implementation of the animation system architecture using React Context and custom components
+2. Development of the `JiggleWrapper` component for periodic animation of icon elements
+3. Integration of animation system with email categories in the sidebar
+4. Performance optimization for animations using CSS keyframes and GPU acceleration
+5. Staggered animation timing to create visual interest without overwhelming the UI
+
+## Technical Considerations
+
+The animation implementation is guided by several key technical considerations:
+
+1. **Performance**: Animations must be smooth and not cause UI jank
+   - Using CSS keyframes for GPU-accelerated performance
+   - Limiting animations to non-text elements
+   - Using will-change property judiciously
+   - Keeping animations under 1 second duration
+
+2. **User Experience**: Animations should enhance rather than distract
+   - Subtle movements that draw attention without annoyance
+   - Periodic reminders timed with minute changes
+   - Only animating when unread messages exist
+   - Limiting animation to icons and badges, not text content
+   - Staggered timing to prevent overwhelming visual effects
+
+3. **Accessibility**: Animations must respect user preferences
+   - Respecting prefers-reduced-motion media query
+   - No critical information conveyed solely through animation
+   - Static visual indicators (badges) accompanying animations
+   - Ensuring keyboard focus remains clear during animations
+
+4. **Code Architecture**: Clean implementation for maintainability
+   - Centralized animation control through Context API
+   - Reusable component for consistent animation behavior
+   - Clear separation of animation logic from component rendering
+   - Type-safe interfaces for animation components
+
+## Implementation Approach
+
+The animation system implementation follows this approach:
+
+1. **Animation Context Provider**
+   - Centralized timing system for coordinated animations
+   - Minute-based timer for periodic animation triggers
+   - Shared state for animation coordination across components
+   - Simple API for components to tap into animation timing
+
+2. **Animation Component Wrapper**
+   - Reusable JiggleWrapper component
+   - Handles animation timing and state
+   - Applies animations based on unread state
+   - Implements staggered timing based on element index
+
+3. **CSS Animation Definitions**
+   - Define keyframe animations in global CSS
+   - Subtle jiggle effect for unread indicators
+   - Hardware-accelerated properties for performance
+   - Consistent animation styling across the application
+
+4. **Integration with Email Categories**
+   - Apply animations to category icons in sidebar
+   - Link animation state to unread message counts
+   - Ensure animations only apply when unread messages exist
+   - Maintain clear visual hierarchy during animations
+
+## Next Steps
+
+The following steps are planned for the animation system:
+
+1. **Testing and Refinement**
+   - Performance testing across different devices
+   - User testing for animation subtlety and effectiveness
+   - Accessibility testing with screen readers and motion preferences
+   - Browser compatibility testing
+
+2. **Extended Implementation**
+   - Apply animation system to other UI elements (inbox tabs, etc.)
+   - Add animation for newly arrived messages
+   - Implement different animation types for different notifications
+   - Create animation feedback for user actions
+
+3. **Documentation**
+   - Document animation components and patterns
+   - Create animation guidelines for developers
+   - Update storybook with animation examples
+   - Add animation testing utilities
+
+## Implementation Timeline
+
+| Task | Timeframe | Status |
+|------|-----------|--------|
+| Animation system architecture design | Week 1 | Completed |
+| Core animation components implementation | Week 1-2 | In Progress |
+| Integration with sidebar categories | Week 2 | In Progress |
+| Performance testing and optimization | Week 2-3 | Not Started |
+| Extended implementation to other UI elements | Week 3 | Not Started |
+| Documentation | Week 3 | Not Started |
+
+## Related Components
+
+The animation system interacts with these key components:
+
+1. **Sidebar Navigation**
+   - Category list items with unread counts
+   - Icon elements that receive animation
+   - Badge components showing unread counts
+
+2. **Email List Components**
+   - Unread email indicators
+   - Category badges within email list
+   - New message notifications
+
+3. **Layout Components**
+   - Animation provider wrapping application layout
+   - Coordinated timing across different parts of the UI
+   - Context-aware animation behavior
+
+## Design Goals
+
+The animation system is designed to achieve these goals:
+
+1. Draw user attention to areas with unread messages
+2. Provide subtle reminder of pending items
+3. Enhance the perception of application responsiveness
+4. Create a polished, modern feel to the interface
+5. Maintain high performance and accessibility standards
+
+## Key Decisions
+
+Several important decisions have shaped the animation implementation:
+
+1. **React Context for Timing**: Using React Context API for timing coordination rather than individual component timers to ensure synchronization and reduce resource usage
+
+2. **CSS Keyframes over JS Animations**: Selecting CSS keyframes for performance advantages over JavaScript-based animations, leveraging GPU acceleration
+
+3. **Staggered Animation Pattern**: Implementing staggered timing for visual interest rather than simultaneous animations
+
+4. **Icon-Only Animation**: Limiting animation to non-text elements to maintain readability and reduce distraction
+
+5. **Periodic Reminder Approach**: Using minute-based periodic animations rather than continuous animation to balance attention-drawing with user focus
+
+## Questions and Concerns
+
+Open questions about the animation implementation include:
+
+1. Should animations be user-configurable (on/off, frequency)?
+2. Is the current animation timing (every minute) appropriate for user experience?
+3. Are there performance concerns for devices with limited resources?
+4. Should we implement different animation types for different notification severities?
+
+## Resources
+
+Key resources for the animation implementation:
+
+1. [CSS Animation Performance](https://web.dev/animations-guide/)
+2. [React useEffect Timing](https://reactjs.org/docs/hooks-effect.html)
+3. [Accessibility Guidelines for Motion](https://www.w3.org/WAI/WCAG21/Understanding/animation-from-interactions.html)
+4. [GPU Acceleration in CSS](https://www.smashingmagazine.com/2016/12/gpu-animation-doing-it-right/)
