@@ -1,115 +1,311 @@
 # Product Context: DyzBox
 
-## Problem Space
+## Problem Statement
 
-DyzBox addresses critical email management challenges faced by professionals and teams:
+Email remains an essential communication tool, but many users struggle with:
 
-1. **Email Overload**: Users are overwhelmed by increasing email volumes, leading to missed important messages and inefficient processing.
-2. **Time Consumption**: Professionals spend excessive time on repetitive email tasks like reading, categorizing, and responding.
-3. **Priority Management**: Critical emails are frequently buried among promotional content and notifications.
-4. **Context Switching**: Managing multiple email accounts creates productivity loss.
-5. **Privacy Concerns**: Users want AI assistance without compromising email security.
-
-## User Experience Goals
-
-DyzBox aims to create an email experience that is:
-
-1. **Efficient**: Reduce average email processing time by 40% through AI-powered tools and optimized interface.
-2. **Intelligent**: Provide 98%+ accuracy in email intent recognition and classification.
-3. **Private**: Maintain user privacy through industry-leading data protection practices and on-device processing.
-4. **Collaborative**: Enable seamless team collaboration while preserving individual productivity.
-5. **Universal**: Support all major email providers with a consistent user experience.
+1. **Information Overload**: The average professional receives 121 emails daily, leading to missed important messages and communication delays.
+2. **Context Switching**: Users spend 28% of their workday managing email, with frequent interruptions breaking their focus.
+3. **Privacy Concerns**: Existing AI-powered email tools often require access to full email content on remote servers.
+4. **Organization Challenges**: Manual organization systems are time-consuming to maintain and often break down under high volume.
+5. **Limited Provider Support**: Many advanced email tools only work with specific email providers.
 
 ## Target Users
 
-### Primary Personas
+DyzBox targets knowledge workers who:
 
-1. **Executive Emma**: 
-   - C-level executive handling 200+ emails daily
-   - Limited time for email management
-   - Needs to quickly identify and respond to important communications
-   - Values privacy and security of sensitive information
+1. **Process high email volumes**: Professionals receiving 50+ emails daily
+2. **Value privacy**: Users concerned about their email data being processed by third parties
+3. **Need better organization**: People who struggle with email organization and prioritization
+4. **Use multiple email accounts**: Users with personal and professional email accounts across different providers
+5. **Rely on email for work**: Professionals whose workflow centers around email communication
 
-2. **Sales Sam**:
-   - Account executive managing ongoing client communications and leads
-   - Requires tools to track response status and follow-ups
-   - Needs to prioritize potential client emails
-   - Benefits from smart reply suggestions for common inquiries
+### User Personas
 
-3. **Manager Mike**:
-   - Team leader coordinating projects across groups
-   - Manages shared inboxes and delegates emails to team members
-   - Needs visibility into team email workload and performance
-   - Requires tools to maintain consistency in team communications
+#### Primary: Sarah, Product Manager (38)
+- Receives 100+ emails daily across work and personal accounts
+- Struggles to identify which emails need immediate attention
+- Often misses important emails among newsletter and notification clutter
+- Values privacy and prefers tools that don't scan all her emails remotely
+- Uses Gmail for work and Outlook for personal email
 
-4. **Support Sally**:
-   - Customer service professional responding to varied inquiries
-   - Handles high volume of similar but unique questions
-   - Benefits from AI-generated response templates
-   - Needs categorization to manage different types of support requests
+#### Secondary: Michael, Freelance Designer (32)
+- Manages client communication primarily through email
+- Needs to track email threads by project
+- Wants faster ways to find information in historical emails
+- Concerned about sensitive client information in emails
+- Uses Gmail and ProtonMail accounts
 
-5. **Freelancer Fred**:
-   - Independent professional managing multiple client relationships
-   - Juggles various project communications from different clients
-   - Needs organizational tools to keep client communications separate
-   - Values tools that reduce administrative overhead
+#### Tertiary: Jennifer, Executive Assistant (45)
+- Manages email for herself and her executive
+- Needs to categorize and prioritize incoming messages
+- Often searches for specific email content
+- Requires high reliability and speed
+- Uses Microsoft 365 for work email
 
-## Market Position
+## User Journeys
 
-DyzBox positions itself as a premium email solution that combines:
+### Core User Journey: Email Processing
 
-1. **Speed focus** from Superhuman
-2. **Organizational innovation** from HEY
-3. **Advanced AI capabilities** beyond what's available in Gmail with Gemini or Outlook with Copilot
-4. **Privacy-first approach** unlike big tech alternatives
-5. **Cross-platform excellence** across all devices
+1. User receives notification of new emails
+2. User opens DyzBox and sees the Smart Inbox with important emails highlighted
+3. User quickly scans prioritized emails in the two-pane view
+4. User responds to urgent messages immediately with smart reply suggestions
+5. User uses keyboard shortcuts to archive or categorize remaining emails
+6. User returns to work with minimal interruption
 
-Key differentiators include:
-- Balanced automation and user control
-- On-device AI processing for enhanced privacy
-- Advanced team collaboration features
-- Support for multiple email providers
-- Personalized AI learning that adapts to individual workflows
+### Feature-Specific Journeys
 
-## Success Criteria
+#### Email Organization Journey
 
-DyzBox will be considered successful when it achieves:
+1. User receives a mix of important and low-priority emails
+2. DyzBox automatically categorizes incoming emails by type and importance
+3. User reviews categorization and adjusts if needed
+4. User creates custom rules for future similar emails
+5. Over time, DyzBox learns the user's preferences and improves categorization accuracy
 
-1. **User Engagement**:
-   - 70%+ daily active user rate
-   - 30% reduction in average session time compared to traditional email clients
-   - 80%+ weekly engagement with AI features
+#### Email Search Journey
 
-2. **Performance**:
-   - 98%+ accuracy in email classification
-   - 90%+ user satisfaction with AI features
-   - 50% reduction in time spent on routine emails
+1. User needs to find specific information from past emails
+2. User enters search terms in the natural language search bar
+3. DyzBox returns semantically relevant results beyond exact keyword matches
+4. User quickly finds the needed information
+5. DyzBox records this search pattern to improve future related searches
 
-3. **Business Growth**:
-   - 20% month-over-month user growth in first year
-   - 80% retention rate for paid subscribers
-   - 40% conversion from free trial to paid subscription
+## User Experience Goals
 
-## User Journey
+1. **Reduce email processing time by 50%**: Through intelligent organization, prioritization, and UI optimizations
+2. **Minimize context switching**: By creating focused email processing workflows
+3. **Enhance privacy control**: With transparent AI processing options and on-device capabilities
+4. **Provide universal email support**: By working with all major email providers
+5. **Create a delightful experience**: With a clean, responsive interface that feels natural to use
 
-1. **Onboarding**:
-   - Connect email account(s)
-   - AI analyzes existing email patterns
-   - User sets preferences for categorization and privacy
-   - Initial inbox organization completed
+## Key Experience Differentiators
 
-2. **Daily Usage**:
-   - Smart Inbox presents important human-to-human messages
-   - AI summarizes emails and suggests replies
-   - User processes emails with keyboard shortcuts
-   - System learns from user behavior and adapts
+1. **Intelligent Prioritization**: AI-based organization that highlights truly important emails
+2. **Privacy-First Design**: Transparent control over what is processed and where
+3. **Speed-Optimized Interface**: Sub-100ms response time for all common actions
+4. **Unified Email Experience**: Consistent interface across different email providers
+5. **Two-Pane Resizable Layout**: Modern, efficient interface that adapts to user preferences
+6. **Contextual Date Formatting**: Intelligent display of time for recent emails and dates for older ones
+7. **Keyboard-First Design**: Comprehensive shortcut support for power users
+8. **Thread Intelligence**: Smart conversation tracking across fragmented email threads
 
-3. **Advanced Adoption**:
-   - Custom categorization rules created
-   - Team collaboration features utilized
-   - Workflow integrations established
-   - Analytics used to improve productivity
+## Design Principles
 
-## Value Proposition
+1. **Clarity Over Decoration**: Prioritize clear information hierarchy over visual embellishments
+2. **Speed Over Completeness**: Optimize for showing the most important information first
+3. **Automation With Control**: Automate routine tasks while providing clear manual override options
+4. **Privacy By Design**: Make privacy controls accessible and transparent
+5. **Learn From Behavior**: Improve the experience based on user behavior without requiring explicit configuration
+6. **Consistent Interaction Patterns**: Maintain consistent UI behaviors across all parts of the application
+7. **Space Efficiency**: Optimize screen real estate for maximum information density without overwhelming the user
 
-"DyzBox transforms email management by combining intelligent AI, thoughtful organization, and blazing speed in a privacy-first solution that gives you back hours each week while ensuring you never miss what matters." 
+## Visual Language
+
+### Brand Identity
+
+- **Brand Personality**: Efficient, intelligent, trustworthy
+- **Voice**: Clear, helpful, concise
+- **Visual Style**: Clean, modern, light with focused accents
+- **Logo**: Stylized mailbox with AI elements
+
+### UI Elements
+
+- **Color Palette**:
+  - Primary: Blue (#0066CC) - Trust, reliability
+  - Secondary: Teal (#00B2A9) - Innovation, intelligence
+  - Accent: Amber (#FF9900) - Important notifications
+  - Neutrals: Various shades of gray for content hierarchy
+  - Success: Green (#36B37E)
+  - Error: Red (#FF5630)
+
+- **Typography**:
+  - Primary Font: Inter (clean, modern, highly readable)
+  - Size Hierarchy: Clear distinction between headings and body text
+  - Line Height: Optimized for readability
+  - Weight: Strategic use of weight to create hierarchy
+
+- **Spacing System**:
+  - Consistent 4px grid-based spacing
+  - Comfortable but efficient content density
+  - Breathing room for primary content
+
+- **Interface Components**:
+  - Email List: Compact entries with clear hierarchy
+  - Email Detail: Clean, focused reading experience
+  - Sidebar: Dynamic navigation with context awareness
+  - Action Buttons: Clear, accessible, with keyboard shortcuts
+
+## Interface Layout
+
+### Overall Structure
+
+```
++------------------+--------------------------------+
+|                  |                                |
+|                  |                                |
+|                  |                                |
+|     Sidebar      |        Main Content           |
+|                  |    (Resizable Two-Pane)       |
+|                  |                                |
+|                  |                                |
+|                  |                                |
++------------------+--------------------------------+
+```
+
+### Inbox View
+
+```
++------------------+----------------+---------------+
+|                  |                |               |
+|                  |   Email List   |  Email Detail |
+|     Sidebar      |    (Resizable) |   (Resizable) |
+|                  |                |               |
+|                  |                |               |
++------------------+----------------+---------------+
+```
+
+### Mobile Adaptation
+
+```
++------------------+
+|                  |
+|     Toolbar      |
+|                  |
++------------------+
+|                  |
+|                  |
+|   Email List     |
+|      OR          |
+|   Email Detail   |
+|   (Swappable)    |
+|                  |
+|                  |
++------------------+
+|                  |
+|    Bottom Nav    |
+|                  |
++------------------+
+```
+
+## Content Strategy
+
+### Email List Content
+
+- Sender name (most prominent)
+- Subject line (second most prominent)
+- Time/date (intelligently formatted - time for today's emails, date for older emails)
+- Brief snippet (first few lines or AI-generated summary)
+- Visual indicators for importance, attachments, etc.
+
+### Email Detail Content
+
+- Clear header with sender information and metadata
+- Well-formatted email body with proper handling of HTML/plain text
+- Intelligent handling of quotes and reply chains
+- Clear indicators for attachments
+- Action buttons for common operations
+
+### Navigation Content
+
+- Primary categories (Inbox, Sent, Drafts, etc.)
+- AI-suggested categories based on user's email patterns
+- User-created labels with hierarchical organization
+- Clear unread/important counters
+
+## Interaction Patterns
+
+### Email Selection
+
+- Single click selects email and shows in detail pane
+- Selection is reflected in URL for direct linking
+- Multi-select with shift/ctrl for batch operations
+
+### Email Actions
+
+- Primary actions available as buttons
+- Secondary actions in dropdown menu
+- All actions available via keyboard shortcuts
+- Quick actions available via swipe on mobile
+
+### Panel Resizing
+
+- Drag handler between email list and detail panes
+- Visual feedback during resizing
+- Minimum width constraints to ensure usability
+- Remember user's preferred panel configuration
+
+### Navigation
+
+- Single click for primary navigation items
+- Expandable sections for nested categories
+- Keyboard navigation with arrow keys and shortcuts
+- Breadcrumb navigation for nested views
+
+## Content Formats
+
+### Email Rendering
+
+- Proper rendering of HTML emails with sanitization
+- Fallback to plain text when needed
+- Responsive scaling for different screen sizes
+- Image blocking with option to load images
+- Link handling with preview and security checks
+
+### Attachments
+
+- Thumbnails for common file types
+- Preview capability for supported formats
+- Download options with progress indication
+- Security scanning before opening
+
+## Accessibility Considerations
+
+- High contrast mode for visually impaired users
+- Screen reader compatibility with proper ARIA labels
+- Keyboard navigation for all functions
+- Resizable text and UI elements
+- Color choices that work for color-blind users
+
+## Performance Targets
+
+- Initial load under 2 seconds
+- Email list rendering under 300ms
+- Email detail rendering under 500ms
+- Action response time under 100ms
+- Smooth transitions and animations (60fps)
+- Minimal memory footprint
+
+## Success Metrics
+
+### User-Centered Metrics
+
+- Reduced time spent processing email (target: 50% reduction)
+- Increased speed of finding important emails (target: 70% faster)
+- Lower missed important email rate (target: <5%)
+- Higher user satisfaction (target: >80% satisfied)
+
+### Business Metrics
+
+- User retention (target: >85% after 30 days)
+- Daily active usage (target: >70% of installed base)
+- Feature adoption (target: >60% using AI features)
+- Paid conversion rate (target: >20% of free users)
+
+## Feature Roadmap Integration
+
+This product context informs the phased implementation approach:
+
+1. **Phase 1: Core Experience** - Focus on the fundamental email management experience with the resizable two-pane layout, intelligent date formatting, and email signature
+2. **Phase 2: Enhanced AI** - Build on the core with AI-powered features while maintaining the established UX patterns
+3. **Phase 3: Team Collaboration** - Extend the experience to collaborative scenarios
+4. **Phase 4: Advanced Personalization** - Refine the experience based on individual usage patterns
+
+## Open Questions
+
+1. How can we make the resizable two-pane layout work effectively on mobile devices?
+2. What level of AI processing can we realistically perform on-device?
+3. How can we make the transition between providers seamless for users?
+4. What's the right balance between automation and user control?
+5. How do we educate users about privacy options without overwhelming them?
