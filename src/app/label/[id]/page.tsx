@@ -2,17 +2,25 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { EmailService } from '@/lib/email/emailService';
-import { GmailProvider } from '@/lib/email/providers/GmailProvider';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Email } from '@/lib/email/providers/EmailProvider';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { Tag } from 'lucide-react';
+import { Folder, Tag as TagIcon } from '@phosphor-icons/react';
+import { getEmailsByLabel, getLabels } from '@/app/actions/email';
+import { GmailProvider } from '@/lib/email/providers/GmailProvider';
+import { EmailService } from '@/lib/email/emailService';
 import EmailActions from '@/components/EmailActions';
 
-export default function InboxPage() {
+export default function LabelPage() {
   const { data: session } = useSession();
+  const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const labelId = decodeURIComponent(params.id as string);
+  
   const [emails, setEmails] = useState<Email[]>([]);
+  const [labelName, setLabelName] = useState<string>("");
+  const [displayName, setDisplayName] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
@@ -29,28 +37,59 @@ export default function InboxPage() {
   const selectedEmailId = searchParams.get('id') || (selectedEmail?.id || null);
   
   useEffect(() => {
+    async function fetchLabelName() {
+      try {
+        const response = await getLabels();
+        if (response.success && response.labels) {
+          const label = response.labels.find(l => l.id === labelId);
+          if (label) {
+            setLabelName(label.name);
+            
+            // Format display name based on label ID
+            if (labelId.startsWith('CATEGORY_')) {
+              const displayPart = labelId.split('_')[1];
+              setDisplayName(displayPart.charAt(0).toUpperCase() + displayPart.slice(1).toLowerCase());
+            } else if (labelId === 'IMPORTANT') {
+              setDisplayName('Important');
+            } else {
+              setDisplayName(label.name || labelId);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching label name:", err);
+      }
+    }
+    
+    fetchLabelName();
+  }, [labelId]);
+  
+  useEffect(() => {
     async function fetchEmails() {
       if (!session?.accessToken) return;
       
       try {
         setLoading(true);
-        const emailProvider = new GmailProvider(session.accessToken as string);
-        const emailService = new EmailService(emailProvider);
+        const response = await getEmailsByLabel(labelId);
         
-        // Fetch emails
-        const fetchedEmails = await emailService.getInbox();
-        setEmails(fetchedEmails.emails || []);
-        setError(null);
+        if (response.success) {
+          setEmails(response.emails || []);
+          setError(null);
+        } else {
+          setError(response.error || 'Failed to fetch emails');
+        }
       } catch (e: any) {
-        console.error('Error fetching emails:', e);
+        console.error('Error fetching emails with label:', e);
         setError(e.message || 'Failed to fetch emails');
       } finally {
         setLoading(false);
       }
     }
     
-    fetchEmails();
-  }, [session]);
+    if (labelId) {
+      fetchEmails();
+    }
+  }, [session, labelId]);
 
   // Fetch selected email details when ID changes
   useEffect(() => {
@@ -177,11 +216,11 @@ export default function InboxPage() {
     
     // Refresh emails
     if (session?.accessToken) {
-      const emailProvider = new GmailProvider(session.accessToken as string);
-      const emailService = new EmailService(emailProvider);
-      
-      emailService.getInbox().then(result => {
-        setEmails(result.emails || []);
+      const response = getEmailsByLabel(labelId);
+      response.then(result => {
+        if (result.success) {
+          setEmails(result.emails || []);
+        }
       }).catch(err => {
         console.error('Error refreshing emails:', err);
       });
@@ -197,11 +236,12 @@ export default function InboxPage() {
       >
         <div className="p-4">
           <div className="flex items-center mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-              <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-            </svg>
-            <h2 className="text-lg font-semibold">Inbox</h2>
+            {labelId.startsWith('CATEGORY_') ? (
+              <Folder size={20} className="mr-2 text-gray-600" weight="light" />
+            ) : (
+              <TagIcon size={20} className="mr-2 text-gray-600" weight="light" />
+            )}
+            <h2 className="text-lg font-semibold">{displayName}</h2>
           </div>
           
           {loading && (
@@ -217,7 +257,7 @@ export default function InboxPage() {
           )}
           
           {!loading && emails.length === 0 && !error ? (
-            <p className="text-sm text-gray-500">No emails found</p>
+            <p className="text-sm text-gray-500">No emails found with this label</p>
           ) : (
             <ul className="space-y-1">
               {emails.map((email) => (

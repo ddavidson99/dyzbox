@@ -132,15 +132,23 @@ export default function ComposeEmailPage() {
     
     // Check if content is likely HTML
     if (content.includes('<blockquote') || content.includes('<p>') || content.includes('<div>')) {
-      // It's already HTML, return as is
-      return content;
+      // It's already HTML, add signature with two blank lines
+      return `${content}
+      <p>&nbsp;</p>
+      <p>&nbsp;</p>
+      <p style="color: #666; font-size: 12px;">Sent with DYZBOX | Inbox clarity, delivered daily</p>`;
     }
     
-    // Convert plain text to HTML
-    return content
+    // Convert plain text to HTML and add signature
+    const formattedContent = content
       .split('\n')
       .map(line => `<p>${line}</p>`)
       .join('');
+      
+    return `${formattedContent}
+    <p>&nbsp;</p>
+    <p>&nbsp;</p>
+    <p style="color: #666; font-size: 12px;">Sent with DYZBOX | Inbox clarity, delivered daily</p>`;
   };
   
   return (

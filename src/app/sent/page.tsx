@@ -40,30 +40,15 @@ export default function SentPage() {
     fetchEmails();
   }, [session]);
 
-  const handleComposeClick = () => {
-    router.push('/inbox/compose');
-  };
-
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-hidden flex">
         {/* Email list */}
         <div className="w-full overflow-y-auto">
           <div className="p-4">
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center">
-                <Send className="h-5 w-5 mr-2 text-gray-600" />
-                <h2 className="text-lg font-semibold">Sent Mail</h2>
-              </div>
-              <button
-                onClick={handleComposeClick}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 3a1 1 0 00-1 1v5H4a1 1 0 100 2h5v5a1 1 0 102 0v-5h5a1 1 0 100-2h-5V4a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                Compose
-              </button>
+            <div className="flex items-center mb-4">
+              <Send className="h-5 w-5 mr-2 text-gray-600" />
+              <h2 className="text-lg font-semibold">Sent</h2>
             </div>
             
             {loading && (
