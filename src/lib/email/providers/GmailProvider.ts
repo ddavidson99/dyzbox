@@ -11,8 +11,8 @@ import {
 import { google } from 'googleapis';
 
 // Rate limiting constants
-const BATCH_SIZE = 10; // Number of emails to fetch in parallel
-const BATCH_DELAY = 1000; // Delay between batches in milliseconds
+const BATCH_SIZE = 5; // Reduced from 10 to 5
+const BATCH_DELAY = 2000; // Increased from 1000 to 2000ms
 const MAX_RETRIES = 3; // Maximum number of retries for rate-limited requests
 
 export class GmailProvider implements EmailProvider {
@@ -93,69 +93,59 @@ export class GmailProvider implements EmailProvider {
   }
 
   // Email fetching methods
-  async fetchEmails({ limit = 100, pageToken, query, labelIds }: FetchEmailsOptions): Promise<FetchEmailsResult> {
-    const allEmails: Email[] = [];
-    let nextPageToken = pageToken;
-    let totalFetched = 0;
+  async fetchEmails({ limit = 20, pageToken, query, labelIds }: FetchEmailsOptions): Promise<FetchEmailsResult> {
+    // Build query parameters
+    const params = new URLSearchParams();
+    params.append('maxResults', String(Math.min(limit, 20))); // Reduced from 100 to 20
     
-    do {
-      // Build query parameters
-      const params = new URLSearchParams();
-      params.append('maxResults', String(Math.min(limit - totalFetched, 100))); // Gmail API max is 100
-      
-      if (nextPageToken) {
-        params.append('pageToken', nextPageToken);
-      }
-      
-      if (query) {
-        params.append('q', query);
-      }
-      
-      // Handle labelIds properly - they should be separate parameters
-      if (labelIds && labelIds.length > 0) {
-        labelIds.forEach(labelId => {
-          params.append('labelIds', labelId);
-        });
-      }
-      
-      // Fetch message list
-      const listResponse = await this.fetchApi(`/messages?${params.toString()}`);
-      
-      if (!listResponse.messages || listResponse.messages.length === 0) {
-        break;
-      }
+    if (pageToken) {
+      params.append('pageToken', pageToken);
+    }
+    
+    if (query) {
+      params.append('q', query);
+    }
+    
+    // Handle labelIds properly
+    if (labelIds && labelIds.length > 0) {
+      labelIds.forEach(labelId => {
+        params.append('labelIds', labelId);
+      });
+    }
+    
+    // Fetch message list
+    const listResponse = await this.fetchApi(`/messages?${params.toString()}`);
+    
+    if (!listResponse.messages || listResponse.messages.length === 0) {
+      return {
+        emails: [],
+        nextPageToken: undefined,
+        resultSizeEstimate: 0
+      };
+    }
 
-      // Process messages in batches
-      for (let i = 0; i < listResponse.messages.length; i += BATCH_SIZE) {
-        const batch = listResponse.messages.slice(i, i + BATCH_SIZE);
-        const messagePromises = batch.map((message: { id: string }) => this.getEmail(message.id));
-        
-        // Wait for the current batch to complete
-        const emails = await Promise.all(messagePromises);
-        allEmails.push(...emails);
-        totalFetched += emails.length;
-        
-        // Add delay between batches to avoid rate limiting
-        if (i + BATCH_SIZE < listResponse.messages.length) {
-          await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
-        }
-      }
+    // Process messages in batches
+    const allEmails: Email[] = [];
+    const messagesToProcess = listResponse.messages.slice(0, Math.min(20, listResponse.messages.length));
+    
+    for (let i = 0; i < messagesToProcess.length; i += BATCH_SIZE) {
+      const batch = messagesToProcess.slice(i, i + BATCH_SIZE);
+      const messagePromises = batch.map((message: { id: string }) => this.getEmail(message.id));
       
-      // Update nextPageToken for next iteration
-      nextPageToken = listResponse.nextPageToken;
+      // Wait for the current batch to complete
+      const emails = await Promise.all(messagePromises);
+      allEmails.push(...emails);
       
-      // Add delay between pages
-      if (nextPageToken) {
+      // Add delay between batches
+      if (i + BATCH_SIZE < messagesToProcess.length) {
         await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
       }
-      
-      // Continue if we have more pages and haven't reached the limit
-    } while (nextPageToken && totalFetched < limit);
+    }
     
     return {
       emails: allEmails,
-      nextPageToken: nextPageToken,
-      resultSizeEstimate: allEmails.length
+      nextPageToken: listResponse.nextPageToken,
+      resultSizeEstimate: listResponse.resultSizeEstimate || allEmails.length
     };
   }
 
