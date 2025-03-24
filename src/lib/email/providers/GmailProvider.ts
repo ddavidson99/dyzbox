@@ -10,6 +10,11 @@ import {
 } from "./EmailProvider";
 import { google } from 'googleapis';
 
+// Rate limiting constants
+const BATCH_SIZE = 10; // Number of emails to fetch in parallel
+const BATCH_DELAY = 1000; // Delay between batches in milliseconds
+const MAX_RETRIES = 3; // Maximum number of retries for rate-limited requests
+
 export class GmailProvider implements EmailProvider {
   private accessToken: string;
   private baseUrl = "https://gmail.googleapis.com/gmail/v1/users/me";
@@ -25,32 +30,47 @@ export class GmailProvider implements EmailProvider {
     return new GmailProvider(session.accessToken as string);
   }
 
-  private async fetchApi(endpoint: string, options?: RequestInit) {
-    const url = `${this.baseUrl}${endpoint}`;
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-        ...(options?.headers || {}),
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gmail API error: ${response.status} ${response.statusText} - ${errorText}`);
-    }
-
-    // Handle empty responses (no content)
-    if (response.status === 204 || response.headers.get('content-length') === '0') {
-      return {}; // Return empty object for empty responses
-    }
-
+  private async fetchWithRetry(url: string, options?: RequestInit, retryCount = 0): Promise<any> {
     try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          ...(options?.headers || {}),
+        },
+      });
+
+      if (response.status === 429 && retryCount < MAX_RETRIES) {
+        // Calculate exponential backoff delay
+        const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.fetchWithRetry(url, options, retryCount + 1);
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Gmail API error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
+
+      // Handle empty responses
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        return {};
+      }
+
       return await response.json();
     } catch (error) {
-      console.error('Failed to parse JSON response:', error);
-      return {}; // Return empty object on parse error
+      if (error instanceof Error && error.message.includes('429') && retryCount < MAX_RETRIES) {
+        const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.fetchWithRetry(url, options, retryCount + 1);
+      }
+      throw error;
     }
+  }
+
+  private async fetchApi(endpoint: string, options?: RequestInit) {
+    const url = `${this.baseUrl}${endpoint}`;
+    return this.fetchWithRetry(url, options);
   }
 
   // Account methods
@@ -100,29 +120,41 @@ export class GmailProvider implements EmailProvider {
       
       // Fetch message list
       const listResponse = await this.fetchApi(`/messages?${params.toString()}`);
-      const messagePromises = [];
       
-      // For each message in the list, fetch the full message
-      if (listResponse.messages && listResponse.messages.length > 0) {
-        for (const message of listResponse.messages) {
-          messagePromises.push(this.getEmail(message.id));
+      if (!listResponse.messages || listResponse.messages.length === 0) {
+        break;
+      }
+
+      // Process messages in batches
+      for (let i = 0; i < listResponse.messages.length; i += BATCH_SIZE) {
+        const batch = listResponse.messages.slice(i, i + BATCH_SIZE);
+        const messagePromises = batch.map((message: { id: string }) => this.getEmail(message.id));
+        
+        // Wait for the current batch to complete
+        const emails = await Promise.all(messagePromises);
+        allEmails.push(...emails);
+        totalFetched += emails.length;
+        
+        // Add delay between batches to avoid rate limiting
+        if (i + BATCH_SIZE < listResponse.messages.length) {
+          await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
         }
       }
       
-      // Wait for all message fetches to complete
-      const emails = await Promise.all(messagePromises);
-      allEmails.push(...emails);
-      totalFetched += emails.length;
-      
       // Update nextPageToken for next iteration
       nextPageToken = listResponse.nextPageToken;
+      
+      // Add delay between pages
+      if (nextPageToken) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+      }
       
       // Continue if we have more pages and haven't reached the limit
     } while (nextPageToken && totalFetched < limit);
     
     return {
       emails: allEmails,
-      nextPageToken: nextPageToken, // Pass the next page token for potential future fetches
+      nextPageToken: nextPageToken,
       resultSizeEstimate: allEmails.length
     };
   }
