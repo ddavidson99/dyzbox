@@ -112,7 +112,7 @@ export default function EmailDetail({ email, onClose, onEmailRead }: EmailDetail
             className="email-body"
           />
         ) : (
-          <pre className="whitespace-pre-wrap font-sans">{email.bodyText || email.body}</pre>
+          <pre className="email-body whitespace-pre-wrap font-sans">{email.bodyText || email.body}</pre>
         )}
       </div>
     </div>

@@ -17,3 +17,27 @@
   25% { transform: translateX(-2px) rotate(-1deg); }
   75% { transform: translateX(2px) rotate(1deg); }
 }
+
+/* Email body styles */
+.email-body {
+  @apply text-base leading-relaxed;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.email-body pre {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Ensure consistent font size for quoted text */
+.email-body blockquote {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 1em 0;
+  padding-left: 1em;
+  border-left: 3px solid #e5e7eb;
+  color: #4b5563;
+}
