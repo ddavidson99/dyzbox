@@ -9,7 +9,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Inbox } from 'lucide-react';
 import { ArrowsClockwise, ArrowBendUpLeft, ArrowSquareOut, X, CaretLeft, CaretRight } from '@phosphor-icons/react';
 import EmailActions from '@/components/EmailActions';
-import EmailDetail from '@/components/EmailDetail';
+import EmailDetailModal from '@/components/EmailDetailModal';
 
 // Estimate of email list item height in pixels - reduced for better space utilization
 const EMAIL_ITEM_HEIGHT = 55;
@@ -36,12 +36,8 @@ export default function InboxPage() {
   const [unreadPage, setUnreadPage] = useState(1);
   const [readPage, setReadPage] = useState(1);
   
-  // Splitter state
-  const [leftPaneWidth, setLeftPaneWidth] = useState(40); // 40% as default for email list
-  const [isDragging, setIsDragging] = useState(false);
-  const splitterRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  
+
   // Get selected email ID from URL or state
   const selectedEmailId = searchParams.get('id') || (selectedEmail?.id || null);
   
@@ -191,80 +187,30 @@ export default function InboxPage() {
     }
   };
   
-  const handleSplitterMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-  
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging || !containerRef.current) return;
-      
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const containerWidth = containerRect.width;
-      const newWidth = ((e.clientX - containerRect.left) / containerWidth) * 100;
-      
-      // Limit the resize to reasonable bounds (20% - 80%)
-      if (newWidth >= 20 && newWidth <= 80) {
-        setLeftPaneWidth(newWidth);
-      }
-    };
-    
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-    
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-    
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging]);
-  
-  const refresh = async () => {
-    if (!session?.accessToken) return;
-    
-    try {
-      setLoading(true);
-      const emailProvider = new GmailProvider(session.accessToken as string);
-      const emailService = new EmailService(emailProvider);
-      
-      const fetchedEmails = await emailService.getInbox();
-      setEmails(fetchedEmails.emails || []);
-      setError(null);
-    } catch (e: any) {
-      console.error('Error refreshing inbox emails:', e);
-      setError(e.message || 'Failed to refresh inbox emails');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
   const handleClose = () => {
     setSelectedEmail(null);
+    const params = new URLSearchParams(searchParams);
+    params.delete('id');
+    router.push(`/inbox?${params.toString()}`);
   };
   
-  const handleEmailRead = (emailId: string) => {
+  const handleEmailRead = async (emailId: string) => {
+    const emailProvider = new GmailProvider(session?.accessToken as string);
+    const emailService = new EmailService(emailProvider);
+    await emailService.markAsRead(emailId);
+    
+    // Update the emails list to reflect the read status
     setEmails(prevEmails => 
       prevEmails.map(email => 
-        email.id === emailId 
-          ? { ...email, isRead: true } 
-          : email
+        email.id === emailId ? { ...email, isRead: true } : email
       )
     );
   };
   
   return (
-    <div ref={containerRef} className="flex h-full relative">
-      {/* Email list - left pane */}
-      <div 
-        className="overflow-y-auto border-r"
-        style={{ width: selectedEmail ? `${leftPaneWidth}%` : '100%' }}
-      >
+    <div ref={containerRef} className="h-full relative">
+      {/* Email list */}
+      <div className="h-full overflow-y-auto">
         <div className="p-4 h-full flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
@@ -304,14 +250,6 @@ export default function InboxPage() {
                   </button>
                 </div>
               )}
-              
-              <button 
-                onClick={refresh}
-                className="text-gray-500 hover:text-gray-700 p-1 rounded hover:bg-gray-100"
-                title="Refresh"
-              >
-                <ArrowsClockwise size={18} weight="regular" />
-              </button>
             </div>
           </div>
           
@@ -484,27 +422,12 @@ export default function InboxPage() {
         </div>
       </div>
       
-      {/* Email detail - right pane */}
+      {/* Email detail modal */}
       {selectedEmail && (
-        <div 
-          className="h-full overflow-y-auto"
-          style={{ width: `${100 - leftPaneWidth}%` }}
-        >
-          <EmailDetail 
-            email={selectedEmail} 
-            onClose={handleClose} 
-            onEmailRead={handleEmailRead}
-          />
-        </div>
-      )}
-      
-      {/* Draggable splitter between panes */}
-      {selectedEmail && (
-        <div
-          ref={splitterRef}
-          className="absolute w-1 h-full bg-gray-200 hover:bg-blue-400 cursor-col-resize z-10"
-          style={{ left: `${leftPaneWidth}%` }}
-          onMouseDown={handleSplitterMouseDown}
+        <EmailDetailModal
+          email={selectedEmail}
+          onClose={handleClose}
+          onEmailRead={handleEmailRead}
         />
       )}
     </div>

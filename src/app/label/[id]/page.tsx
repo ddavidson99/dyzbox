@@ -10,8 +10,8 @@ import { getEmailsByLabel, getLabels } from '@/app/actions/email';
 import { GmailProvider } from '@/lib/email/providers/GmailProvider';
 import { EmailService } from '@/lib/email/emailService';
 import EmailActions from '@/components/EmailActions';
-import EmailDetail from '@/components/EmailDetail';
-import { markAsRead } from '@/lib/email/emailActions';
+import EmailDetailModal from '@/components/EmailDetailModal';
+import { markAsRead } from '@/app/actions/email';
 
 // Estimate of email list item height in pixels - reduced for better space utilization
 const EMAIL_ITEM_HEIGHT = 55;
@@ -326,7 +326,7 @@ export default function LabelPage() {
   };
 
   return (
-    <div ref={containerRef} className="flex h-full relative">
+    <div ref={containerRef} className="h-full relative">
       {/* Email list - left pane */}
       <div 
         className="overflow-y-auto border-r"
@@ -560,45 +560,27 @@ export default function LabelPage() {
         </div>
       )}
 
-      {/* Email detail - right pane */}
+      {/* Email detail modal */}
       {selectedEmail && (
-        <div 
-          className="overflow-y-auto p-4 bg-gray-50"
-          style={{ width: `${100 - leftPaneWidth}%` }}
-        >
-          {emailLoading ? (
-            <div className="text-center py-4">
-              <p className="text-sm">Loading email...</p>
-            </div>
-          ) : emailError ? (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-sm">
-              <p>{emailError}</p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-lg shadow-md">
-              <EmailDetail 
-                email={selectedEmail}
-                onClose={() => {
-                  setSelectedEmail(null);
-                  router.push(`/label/${encodeURIComponent(labelId)}`);
-                }}
-                onEmailRead={(emailId) => {
-                  // Handle email read
-                  if (session?.accessToken) {
-                    markAsRead(emailId).then(() => {
-                      // Refresh emails after marking as read
-                      getEmailsByLabel(labelId).then(response => {
-                        if (response.success) {
-                          setEmails(response.emails || []);
-                        }
-                      });
-                    });
+        <EmailDetailModal
+          email={selectedEmail}
+          onClose={() => {
+            setSelectedEmail(null);
+            router.push(`/label/${encodeURIComponent(labelId)}`);
+          }}
+          onEmailRead={(emailId) => {
+            if (session?.accessToken) {
+              markAsRead(emailId).then(() => {
+                // Refresh emails after marking as read
+                getEmailsByLabel(labelId).then(response => {
+                  if (response.success) {
+                    setEmails(response.emails || []);
                   }
-                }}
-              />
-            </div>
-          )}
-        </div>
+                });
+              });
+            }
+          }}
+        />
       )}
     </div>
   );
