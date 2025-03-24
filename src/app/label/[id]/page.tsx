@@ -10,6 +10,8 @@ import { getEmailsByLabel, getLabels } from '@/app/actions/email';
 import { GmailProvider } from '@/lib/email/providers/GmailProvider';
 import { EmailService } from '@/lib/email/emailService';
 import EmailActions from '@/components/EmailActions';
+import EmailDetail from '@/components/EmailDetail';
+import { markAsRead } from '@/lib/email/emailActions';
 
 // Estimate of email list item height in pixels - reduced for better space utilization
 const EMAIL_ITEM_HEIGHT = 55;
@@ -574,145 +576,26 @@ export default function LabelPage() {
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow-md">
-              <div className="p-4 border-b flex justify-between items-start">
-                <div>
-                  <h1 className="text-xl font-bold mb-2">{selectedEmail.subject}</h1>
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0 mr-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm">
-                        {selectedEmail.from.name?.[0] || selectedEmail.from.email[0]}
-                      </div>
-                    </div>
-                    
-                    <div className="flex-grow">
-                      <div className="font-medium text-sm">{selectedEmail.from.name || selectedEmail.from.email}</div>
-                      <div className="text-gray-600 text-xs">{selectedEmail.from.email}</div>
-                      <div className="text-gray-500 text-xs">
-                        {new Date(selectedEmail.receivedAt).toLocaleString()}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {selectedEmail.labels && selectedEmail.labels.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {selectedEmail.labels
-                        .filter(label => !['INBOX', 'SENT', 'UNREAD', 'CATEGORY_PERSONAL', 'CATEGORY_SOCIAL', 'CATEGORY_PROMOTIONS', 'CATEGORY_UPDATES', 'CATEGORY_FORUMS'].includes(label))
-                        .map((label, index) => (
-                          <div key={index} className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-full flex items-center">
-                            <span className="mr-1">•</span>
-                            <span>{label}</span>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex space-x-2">
-                  <button
-                    onClick={handleReply}
-                    className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 border border-blue-600 rounded hover:bg-blue-50 flex items-center"
-                    title="Reply"
-                  >
-                    <ArrowBendUpLeft size={16} weight="regular" className="mr-1" />
-                    <span>Reply</span>
-                  </button>
-                  
-                  <button
-                    onClick={handleReplyAll}
-                    className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 border border-blue-600 rounded hover:bg-blue-50 flex items-center"
-                    title="Reply All"
-                  >
-                    <ArrowsClockwise size={16} weight="regular" className="mr-1" />
-                    <span>Reply All</span>
-                  </button>
-
-                  <button
-                    onClick={handleForward}
-                    className="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 border border-blue-600 rounded hover:bg-blue-50 flex items-center"
-                    title="Forward"
-                  >
-                    <ArrowSquareOut size={16} weight="regular" className="mr-1" />
-                    <span>Forward</span>
-                  </button>
-                  
-                  <button
-                    onClick={handleCloseEmail}
-                    className="text-gray-500 hover:text-gray-700 text-sm px-2 py-1"
-                    title="Close"
-                  >
-                    <X size={20} weight="regular" />
-                  </button>
-                </div>
-              </div>
-              
-              <div className="p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <h1 className="text-xl font-semibold">{selectedEmail.subject}</h1>
-                  <div className="flex space-x-1">
-                    <EmailActions 
-                      emailId={selectedEmail.id} 
-                      isRead={selectedEmail.isRead} 
-                      onActionComplete={() => {
-                        // Reload emails after action
-                        if (session?.accessToken) {
-                          // Use existing getEmailsByLabel function to refresh emails
-                          getEmailsByLabel(labelId).then(response => {
-                            if (response.success) {
-                              setEmails(response.emails || []);
-                            }
-                          });
+              <EmailDetail 
+                email={selectedEmail}
+                onClose={() => {
+                  setSelectedEmail(null);
+                  router.push(`/label/${encodeURIComponent(labelId)}`);
+                }}
+                onEmailRead={(emailId) => {
+                  // Handle email read
+                  if (session?.accessToken) {
+                    markAsRead(emailId).then(() => {
+                      // Refresh emails after marking as read
+                      getEmailsByLabel(labelId).then(response => {
+                        if (response.success) {
+                          setEmails(response.emails || []);
                         }
-                        // Return to label view
-                        router.push(`/label/${encodeURIComponent(labelId)}`);
-                      }} 
-                    />
-                    <button 
-                      onClick={() => router.push(`/label/${encodeURIComponent(labelId)}`)}
-                      className="text-gray-500 hover:text-gray-700 p-1 rounded hover:bg-gray-100"
-                      title="Close"
-                    >
-                      <X size={18} weight="regular" />
-                    </button>
-                  </div>
-                </div>
-                
-                {/* Email body */}
-                <div className="p-6 flex-1 overflow-y-auto">
-                  {selectedEmail.bodyHtml ? (
-                    <div dangerouslySetInnerHTML={{ __html: selectedEmail.bodyHtml }} />
-                  ) : (
-                    <pre className="whitespace-pre-wrap font-sans">{selectedEmail.bodyText || selectedEmail.body}</pre>
-                  )}
-                </div>
-                
-                {selectedEmail.attachments && selectedEmail.attachments.length > 0 && (
-                  <div className="mt-4 border-t pt-4">
-                    <h2 className="text-md font-medium mb-2">Attachments ({selectedEmail.attachments.length})</h2>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedEmail.attachments.map((attachment, index) => (
-                        <div
-                          key={index}
-                          className="border rounded p-2 flex items-center gap-2 text-xs"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4 text-gray-500"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          <span>{attachment.filename}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+                      });
+                    });
+                  }
+                }}
+              />
             </div>
           )}
         </div>

@@ -3,12 +3,13 @@
 import { useState, useRef, useEffect } from "react";
 import { markAsRead, markAsUnread, trashEmail, addLabel, removeLabel, getLabels, getEmail } from "@/app/actions/email";
 import { toast } from "react-hot-toast";
-import { Eye, EyeSlash, Tag, Trash, CaretDown } from "@phosphor-icons/react";
+import { Eye, EyeSlash, Tag, Trash, Star, Check, X, Clock } from "@phosphor-icons/react";
 
 interface EmailActionsProps {
   emailId: string;
   isRead: boolean;
   onActionComplete?: () => void;
+  onClose?: () => void;
 }
 
 type Label = {
@@ -20,7 +21,8 @@ type Label = {
 export default function EmailActions({ 
   emailId,
   isRead,
-  onActionComplete 
+  onActionComplete,
+  onClose
 }: EmailActionsProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showLabelMenu, setShowLabelMenu] = useState(false);
@@ -83,7 +85,7 @@ export default function EmailActions({
     fetchEmailLabels();
   }, [emailId]);
 
-  const handleAction = async (action: 'read' | 'unread' | 'trash') => {
+  const handleAction = async (action: 'read' | 'unread' | 'trash' | 'archive') => {
     setIsLoading(true);
     try {
       let result;
@@ -107,10 +109,16 @@ export default function EmailActions({
         case 'trash':
           result = await trashEmail(emailId);
           if (result.success) {
-            toast.success('Moved to trash');
+            toast.success('Email deleted');
+            if (onClose) onClose();
           } else {
-            toast.error(result.error || 'Failed to move to trash');
+            toast.error(result.error || 'Failed to delete email');
           }
+          break;
+        case 'archive':
+          // TODO: Implement archive functionality
+          toast.success('Email archived');
+          if (onClose) onClose();
           break;
       }
       
@@ -158,75 +166,116 @@ export default function EmailActions({
 
   return (
     <div className="flex items-center space-x-2">
-      {isRead ? (
+      {/* Actions */}
+      <div className="flex items-center space-x-2 border-r pr-2 mr-2">
+        {/* Read/Unread toggle */}
         <button
-          onClick={() => handleAction('unread')}
+          onClick={() => handleAction(isRead ? 'unread' : 'read')}
           disabled={isLoading}
           className="p-2 text-gray-500 hover:text-blue-500 hover:bg-gray-100 rounded-full"
-          title="Mark as unread"
+          title={isRead ? "Mark as unread" : "Mark as read"}
         >
-          <EyeSlash size={20} weight="regular" />
-        </button>
-      ) : (
-        <button
-          onClick={() => handleAction('read')}
-          disabled={isLoading}
-          className="p-2 text-gray-500 hover:text-blue-500 hover:bg-gray-100 rounded-full"
-          title="Mark as read"
-        >
-          <Eye size={20} weight="regular" />
-        </button>
-      )}
-
-      <div className="relative">
-        <button
-          onClick={() => setShowLabelMenu(!showLabelMenu)}
-          className={`relative p-2 rounded-full ${showLabelMenu ? 'bg-blue-100' : activeLabelIds.length > 0 ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-100'}`}
-          disabled={isLoading}
-        >
-          <Tag size={20} weight="regular" />
+          {isRead ? (
+            <EyeSlash size={20} weight="regular" />
+          ) : (
+            <Eye size={20} weight="regular" />
+          )}
         </button>
 
-        {showLabelMenu && (
-          <div 
-            ref={labelMenuRef}
-            className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-10 border border-gray-200 overflow-hidden"
+        {/* Star placeholder */}
+        <button
+          disabled={true}
+          className="p-2 text-gray-500 hover:text-yellow-500 hover:bg-gray-100 rounded-full"
+          title="Star (coming soon)"
+        >
+          <Star size={20} weight="regular" />
+        </button>
+
+        {/* Label menu */}
+        <div className="relative">
+          <button
+            onClick={() => setShowLabelMenu(!showLabelMenu)}
+            className={`relative p-2 rounded-full ${showLabelMenu ? 'bg-blue-100' : activeLabelIds.length > 0 ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-100'}`}
+            disabled={isLoading}
+            title="Labels"
           >
-            <div className="p-2 border-b border-gray-200">
-              <p className="text-sm font-medium text-gray-700">Add label</p>
+            <Tag size={20} weight="regular" />
+          </button>
+
+          {showLabelMenu && (
+            <div 
+              ref={labelMenuRef}
+              className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-10 border border-gray-200 overflow-hidden"
+            >
+              <div className="p-2 border-b border-gray-200">
+                <p className="text-sm font-medium text-gray-700">Add label</p>
+              </div>
+              <div className="max-h-60 overflow-y-auto">
+                {labels.length === 0 ? (
+                  <p className="p-3 text-sm text-gray-500">No labels found</p>
+                ) : (
+                  <ul>
+                    {labels.map((label) => (
+                      <li
+                        key={label.id}
+                        className={`px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer flex items-center ${
+                          activeLabelIds.includes(label.id) ? 'bg-blue-50 text-blue-600' : ''
+                        }`}
+                        onClick={() => handleToggleLabel(label.id)}
+                      >
+                        <span className="mr-2">{activeLabelIds.includes(label.id) ? '✓' : ''}</span>
+                        {label.name}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
-            <div className="max-h-60 overflow-y-auto">
-              {labels.length === 0 ? (
-                <p className="p-3 text-sm text-gray-500">No labels found</p>
-              ) : (
-                <ul>
-                  {labels.map((label) => (
-                    <li
-                      key={label.id}
-                      className={`px-4 py-2 text-sm hover:bg-gray-100 cursor-pointer flex items-center ${
-                        activeLabelIds.includes(label.id) ? 'bg-blue-50 text-blue-600' : ''
-                      }`}
-                      onClick={() => handleToggleLabel(label.id)}
-                    >
-                      <span className="mr-2">{activeLabelIds.includes(label.id) ? '✓' : ''}</span>
-                      {label.name}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      <button
-        onClick={() => handleAction('trash')}
-        disabled={isLoading}
-        className="p-2 text-gray-500 hover:text-red-500 hover:bg-gray-100 rounded-full"
-        title="Move to trash"
-      >
-        <Trash size={20} weight="regular" />
-      </button>
+      {/* Dispositions */}
+      <div className="flex items-center space-x-2">
+        {/* Done/Archive */}
+        <button
+          onClick={() => handleAction('archive')}
+          disabled={isLoading}
+          className="p-2 text-gray-500 hover:text-green-500 hover:bg-gray-100 rounded-full"
+          title="Done"
+        >
+          <Check size={20} weight="regular" />
+        </button>
+
+        {/* Sleep placeholder */}
+        <button
+          disabled={true}
+          className="p-2 text-gray-500 hover:text-blue-500 hover:bg-gray-100 rounded-full"
+          title="Sleep (coming soon)"
+        >
+          <Clock size={20} weight="regular" />
+        </button>
+
+        {/* Delete */}
+        <button
+          onClick={() => handleAction('trash')}
+          disabled={isLoading}
+          className="p-2 text-gray-500 hover:text-red-500 hover:bg-gray-100 rounded-full"
+          title="Delete"
+        >
+          <Trash size={20} weight="regular" />
+        </button>
+
+        {/* Close */}
+        <button
+          onClick={onClose}
+          disabled={isLoading}
+          className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full"
+          title="Close"
+        >
+          <X size={20} weight="regular" />
+        </button>
+      </div>
     </div>
   );
 } 

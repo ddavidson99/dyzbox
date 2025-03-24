@@ -315,4 +315,23 @@ export async function getUnreadCounts() {
       counts: {}
     };
   }
+}
+
+export async function archiveEmail(emailId: string) {
+  try {
+    const session = await auth();
+    if (!session?.accessToken) {
+      return { success: false, error: 'Not authenticated' };
+    }
+    
+    const provider = new GmailProvider(session.accessToken as string);
+    const emailService = new EmailService(provider);
+    
+    // Remove INBOX label to archive the email
+    await emailService.removeLabel(emailId, 'INBOX');
+    return { success: true };
+  } catch (error) {
+    console.error('Error archiving email:', error);
+    return { success: false, error: 'Failed to archive email' };
+  }
 } 

@@ -1,5 +1,5 @@
 import { Email } from '@/lib/email/providers/EmailProvider';
-import { ArrowBendUpLeft, ArrowSquareOut, X } from '@phosphor-icons/react';
+import { ArrowBendUpLeft, ArrowBendDoubleUpLeft, ArrowBendUpRight } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import EmailActions from './EmailActions';
@@ -26,22 +26,42 @@ export default function EmailDetail({ email, onClose, onEmailRead }: EmailDetail
       <div className="p-4 border-b">
         <div className="flex justify-between items-start mb-2">
           <h1 className="text-xl font-semibold">{email.subject}</h1>
-          <div className="flex space-x-1">
+          <div className="flex items-center">
+            {/* Reply actions */}
+            <div className="flex items-center space-x-1 border-r pr-2 mr-2">
+              <button 
+                onClick={() => router.push('/compose?reply=' + email.id)}
+                className="p-2 text-gray-500 hover:text-blue-500 hover:bg-gray-100 rounded-full"
+                title="Reply"
+              >
+                <ArrowBendUpLeft size={20} weight="regular" />
+              </button>
+              <button 
+                onClick={() => router.push('/compose?replyAll=' + email.id)}
+                className="p-2 text-gray-500 hover:text-blue-500 hover:bg-gray-100 rounded-full"
+                title="Reply All"
+              >
+                <ArrowBendDoubleUpLeft size={20} weight="regular" />
+              </button>
+              <button 
+                onClick={() => router.push('/compose?forward=' + email.id)}
+                className="p-2 text-gray-500 hover:text-blue-500 hover:bg-gray-100 rounded-full"
+                title="Forward"
+              >
+                <ArrowBendUpRight size={20} weight="regular" />
+              </button>
+            </div>
+
+            {/* Email actions and dispositions */}
             <EmailActions 
               emailId={email.id} 
               isRead={email.isRead} 
               onActionComplete={() => {
                 // Close email detail when action completes
                 onClose();
-              }} 
+              }}
+              onClose={onClose}
             />
-            <button 
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 p-1 rounded hover:bg-gray-100"
-              title="Close"
-            >
-              <X size={18} weight="regular" />
-            </button>
           </div>
         </div>
         
@@ -94,24 +114,6 @@ export default function EmailDetail({ email, onClose, onEmailRead }: EmailDetail
         ) : (
           <pre className="whitespace-pre-wrap font-sans">{email.bodyText || email.body}</pre>
         )}
-      </div>
-      
-      {/* Email actions */}
-      <div className="p-3 border-t flex items-center space-x-2">
-        <button 
-          onClick={() => router.push('/compose?reply=' + email.id)}
-          className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded flex items-center"
-        >
-          <ArrowBendUpLeft size={16} className="mr-1.5" weight="regular" />
-          Reply
-        </button>
-        <button 
-          className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded flex items-center"
-          onClick={() => window.open(`https://mail.google.com/mail/u/0/#inbox/${email.id}`, '_blank')}
-        >
-          <ArrowSquareOut size={16} className="mr-1.5" weight="regular" />
-          Open in Gmail
-        </button>
       </div>
     </div>
   );
