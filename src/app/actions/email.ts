@@ -289,10 +289,10 @@ export async function getUnreadCounts() {
     await Promise.all(
       labelIds.map(async (labelId) => {
         try {
-          // Get only unread emails for this label
+          // Get only unread emails for this label by passing both labels as separate items
           const result = await provider.fetchEmails({ 
             labelIds: [labelId, 'UNREAD'],
-            // maxResults: 999 // Removed due to type error
+            limit: 500 // Increased limit to get more accurate counts
           });
           
           counts[labelId] = result.emails?.length || 0;

@@ -16,6 +16,7 @@ export class EmailService {
 
   async getInbox(options?: FetchEmailsOptions) {
     return this.provider.fetchEmails({
+      limit: 500,
       ...options,
       labelIds: ['INBOX']
     });
@@ -23,6 +24,7 @@ export class EmailService {
 
   async getImportant(options?: FetchEmailsOptions) {
     return this.provider.fetchEmails({
+      limit: 500,
       ...options,
       labelIds: ['IMPORTANT']
     });
@@ -30,6 +32,7 @@ export class EmailService {
 
   async getSent(options?: FetchEmailsOptions) {
     return this.provider.fetchEmails({
+      limit: 500,
       ...options,
       labelIds: ['SENT']
     });
@@ -37,6 +40,7 @@ export class EmailService {
 
   async getDrafts(options?: FetchEmailsOptions) {
     return this.provider.fetchEmails({
+      limit: 500,
       ...options,
       labelIds: ['DRAFT']
     });
@@ -44,6 +48,7 @@ export class EmailService {
 
   async getTrash(options?: FetchEmailsOptions) {
     return this.provider.fetchEmails({
+      limit: 500,
       ...options,
       labelIds: ['TRASH']
     });
@@ -51,6 +56,7 @@ export class EmailService {
 
   async getSpam(options?: FetchEmailsOptions) {
     return this.provider.fetchEmails({
+      limit: 500,
       ...options,
       labelIds: ['SPAM']
     });

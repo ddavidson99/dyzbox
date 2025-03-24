@@ -73,41 +73,57 @@ export class GmailProvider implements EmailProvider {
   }
 
   // Email fetching methods
-  async fetchEmails({ limit = 20, pageToken, query, labelIds }: FetchEmailsOptions): Promise<FetchEmailsResult> {
-    // Build query parameters
-    const params = new URLSearchParams();
-    params.append('maxResults', String(limit));
+  async fetchEmails({ limit = 100, pageToken, query, labelIds }: FetchEmailsOptions): Promise<FetchEmailsResult> {
+    const allEmails: Email[] = [];
+    let nextPageToken = pageToken;
+    let totalFetched = 0;
     
-    if (pageToken) {
-      params.append('pageToken', pageToken);
-    }
-    
-    if (query) {
-      params.append('q', query);
-    }
-    
-    if (labelIds && labelIds.length > 0) {
-      params.append('labelIds', labelIds.join(','));
-    }
-    
-    // Fetch message list
-    const listResponse = await this.fetchApi(`/messages?${params.toString()}`);
-    const messagePromises = [];
-    
-    // For each message in the list, fetch the full message
-    if (listResponse.messages && listResponse.messages.length > 0) {
-      for (const message of listResponse.messages) {
-        messagePromises.push(this.getEmail(message.id));
+    do {
+      // Build query parameters
+      const params = new URLSearchParams();
+      params.append('maxResults', String(Math.min(limit - totalFetched, 100))); // Gmail API max is 100
+      
+      if (nextPageToken) {
+        params.append('pageToken', nextPageToken);
       }
-    }
-    
-    // Wait for all message fetches to complete
-    const emails = await Promise.all(messagePromises);
+      
+      if (query) {
+        params.append('q', query);
+      }
+      
+      // Handle labelIds properly - they should be separate parameters
+      if (labelIds && labelIds.length > 0) {
+        labelIds.forEach(labelId => {
+          params.append('labelIds', labelId);
+        });
+      }
+      
+      // Fetch message list
+      const listResponse = await this.fetchApi(`/messages?${params.toString()}`);
+      const messagePromises = [];
+      
+      // For each message in the list, fetch the full message
+      if (listResponse.messages && listResponse.messages.length > 0) {
+        for (const message of listResponse.messages) {
+          messagePromises.push(this.getEmail(message.id));
+        }
+      }
+      
+      // Wait for all message fetches to complete
+      const emails = await Promise.all(messagePromises);
+      allEmails.push(...emails);
+      totalFetched += emails.length;
+      
+      // Update nextPageToken for next iteration
+      nextPageToken = listResponse.nextPageToken;
+      
+      // Continue if we have more pages and haven't reached the limit
+    } while (nextPageToken && totalFetched < limit);
     
     return {
-      emails,
-      nextPageToken: listResponse.nextPageToken,
-      resultSizeEstimate: listResponse.resultSizeEstimate || 0
+      emails: allEmails,
+      nextPageToken: nextPageToken, // Pass the next page token for potential future fetches
+      resultSizeEstimate: allEmails.length
     };
   }
 
