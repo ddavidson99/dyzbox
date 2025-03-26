@@ -29,25 +29,30 @@ export default function InboxPage() {
   
   // Pagination state
   const [page, setPage] = useState(1);
-  const [itemsPerPage] = useState(25);
+  const [itemsPerPage] = useState(10); // Reduced from 25 to 10
   const [totalEmails, setTotalEmails] = useState(0);
-  const [nextPageToken, setNextPageToken] = useState<string | undefined>();
+  const [pageTokens, setPageTokens] = useState<string[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   
   // Get selected email ID from URL or state
   const selectedEmailId = searchParams.get('id') || (selectedEmail?.id || null);
 
   // Calculate total pages
-  const totalPages = Math.ceil(totalEmails / itemsPerPage);
+  const totalPages = Math.max(Math.ceil(totalEmails / itemsPerPage), page);
 
   // Function to load emails
-  const loadEmails = async (pageToken?: string) => {
-    if (!session?.accessToken) return;
+  const loadEmails = async (pageToLoad: number) => {
+    if (!session?.accessToken || loadingMore) return;
     
     try {
       setLoadingMore(true);
+      setError(null);
+      
       const emailProvider = new GmailProvider(session.accessToken as string);
       const emailService = new EmailService(emailProvider);
+      
+      // Get the appropriate page token
+      const pageToken = pageToLoad > 1 ? pageTokens[pageToLoad - 2] : undefined;
       
       const result = await emailService.getInbox({ 
         pageToken,
@@ -55,17 +60,37 @@ export default function InboxPage() {
       });
       
       if (result.emails?.length) {
-        if (pageToken) {
-          setEmails(prev => [...prev, ...result.emails]);
-        } else {
+        if (pageToLoad === 1) {
+          // Reset emails for first page
           setEmails(result.emails);
+          if (result.nextPageToken) {
+            setPageTokens([result.nextPageToken]);
+          } else {
+            setPageTokens([]);
+          }
+        } else {
+          // Append emails for subsequent pages
+          setEmails(prev => [...prev, ...result.emails]);
+          if (result.nextPageToken) {
+            setPageTokens(prev => {
+              const newTokens = [...prev];
+              newTokens.push(result.nextPageToken!);
+              return newTokens;
+            });
+          }
         }
-        setNextPageToken(result.nextPageToken);
+        
+        // Always update total count
         setTotalEmails(result.resultSizeEstimate);
       }
     } catch (e: any) {
       console.error('Error loading emails:', e);
       setError(e.message || 'Failed to load emails');
+      
+      // Reset page if we hit an error
+      if (pageToLoad > 1) {
+        setPage(pageToLoad - 1);
+      }
     } finally {
       setLoadingMore(false);
     }
@@ -75,16 +100,29 @@ export default function InboxPage() {
   useEffect(() => {
     if (session?.accessToken) {
       setLoading(true);
-      loadEmails().finally(() => setLoading(false));
+      loadEmails(1).finally(() => setLoading(false));
     }
   }, [session]);
 
   // Load more emails when page changes
   useEffect(() => {
-    if (!loading && page > 1 && nextPageToken) {
-      loadEmails(nextPageToken);
+    if (!loading && page > 1) {
+      loadEmails(page);
     }
   }, [page]);
+
+  // Handle page changes
+  const handlePreviousPage = () => {
+    if (page > 1) {
+      setPage(p => p - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (page < totalPages && (page === 1 || pageTokens[page - 2])) {
+      setPage(p => p + 1);
+    }
+  };
 
   // Email selection handlers
   const handleEmailSelect = (email: Email) => {
@@ -130,9 +168,9 @@ export default function InboxPage() {
               {totalPages > 1 && (
                 <div className="flex items-center text-xs">
                   <button 
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className={`p-1 rounded ${page === 1 ? 'text-gray-300' : 'text-gray-500 hover:bg-gray-100'}`}
+                    onClick={handlePreviousPage}
+                    disabled={page === 1 || loadingMore}
+                    className={`p-1 rounded ${page === 1 || loadingMore ? 'text-gray-300' : 'text-gray-500 hover:bg-gray-100'}`}
                     aria-label="Previous page"
                   >
                     <CaretLeft size={14} weight="bold" />
@@ -141,9 +179,9 @@ export default function InboxPage() {
                     {page} / {totalPages}
                   </span>
                   <button 
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={!nextPageToken}
-                    className={`p-1 rounded ${!nextPageToken ? 'text-gray-300' : 'text-gray-500 hover:bg-gray-100'}`}
+                    onClick={handleNextPage}
+                    disabled={page >= totalPages || loadingMore || !pageTokens[page - 1]}
+                    className={`p-1 rounded ${page >= totalPages || loadingMore || !pageTokens[page - 1] ? 'text-gray-300' : 'text-gray-500 hover:bg-gray-100'}`}
                     aria-label="Next page"
                   >
                     <CaretRight size={14} weight="bold" />

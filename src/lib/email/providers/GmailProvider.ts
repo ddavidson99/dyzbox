@@ -94,57 +94,73 @@ export class GmailProvider implements EmailProvider {
 
   // Email fetching methods
   async fetchEmails({ limit = 100, pageToken, query, labelIds }: FetchEmailsOptions): Promise<FetchEmailsResult> {
-    // First get total count with minimal data
-    const countParams = new URLSearchParams();
-    countParams.append('labelIds', 'INBOX');
-    const countResponse = await this.fetchApi(`/messages?${countParams.toString()}`);
-    const totalCount = countResponse.resultSizeEstimate || 0;
-    
-    // Build query parameters for actual fetch
-    const params = new URLSearchParams();
-    params.append('maxResults', String(Math.min(limit, 100)));
-    params.append('labelIds', 'INBOX');
-    
-    if (pageToken) {
-      params.append('pageToken', pageToken);
-    }
-    
-    // Fetch messages
-    const listResponse = await this.fetchApi(`/messages?${params.toString()}`);
-    
-    if (!listResponse.messages || listResponse.messages.length === 0) {
+    try {
+      // First get total count with minimal data
+      const countParams = new URLSearchParams();
+      countParams.append('labelIds', 'INBOX');
+      countParams.append('maxResults', '1');
+      const countResponse = await this.fetchApi(`/messages?${countParams.toString()}`);
+      const totalCount = countResponse.resultSizeEstimate || 0;
+
+      // Build query parameters for actual fetch
+      const params = new URLSearchParams();
+      params.append('maxResults', String(Math.min(limit, 100)));
+      params.append('labelIds', 'INBOX');
+      
+      if (pageToken) {
+        params.append('pageToken', pageToken);
+      }
+
+      // Fetch messages list with delay to avoid rate limits
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const listResponse = await this.fetchApi(`/messages?${params.toString()}`);
+      
+      if (!listResponse.messages || listResponse.messages.length === 0) {
+        return {
+          emails: [],
+          nextPageToken: undefined,
+          resultSizeEstimate: totalCount
+        };
+      }
+
+      // Process messages in smaller batches with longer delays
+      const allEmails: Email[] = [];
+      const messagesToProcess = listResponse.messages;
+      const batchSize = 5; // Smaller batch size
+      
+      for (let i = 0; i < messagesToProcess.length; i += batchSize) {
+        const batch = messagesToProcess.slice(i, i + batchSize);
+        
+        // Process each message in the batch sequentially to avoid rate limits
+        for (const message of batch) {
+          try {
+            const email = await this.getEmail(message.id);
+            if (email) {
+              allEmails.push(email);
+            }
+            // Add delay between each message
+            await new Promise(resolve => setTimeout(resolve, 250));
+          } catch (error) {
+            console.error('Error processing message:', error);
+            // Continue with next message
+          }
+        }
+        
+        // Add longer delay between batches
+        if (i + batchSize < messagesToProcess.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
       return {
-        emails: [],
-        nextPageToken: undefined,
+        emails: allEmails,
+        nextPageToken: listResponse.nextPageToken,
         resultSizeEstimate: totalCount
       };
+    } catch (error) {
+      console.error('Error in fetchEmails:', error);
+      throw error;
     }
-
-    // Process messages in batches
-    const allEmails: Email[] = [];
-    const messagesToProcess = listResponse.messages;
-    
-    for (let i = 0; i < messagesToProcess.length; i += BATCH_SIZE) {
-      const batch = messagesToProcess.slice(i, i + BATCH_SIZE);
-      const messagePromises = batch.map((message: { id: string }) => this.getEmail(message.id));
-      
-      try {
-        const emails = await Promise.all(messagePromises);
-        allEmails.push(...emails.filter(Boolean));
-        
-        if (i + BATCH_SIZE < messagesToProcess.length) {
-          await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
-        }
-      } catch (error) {
-        console.error('Error processing batch:', error);
-      }
-    }
-    
-    return {
-      emails: allEmails,
-      nextPageToken: listResponse.nextPageToken,
-      resultSizeEstimate: totalCount
-    };
   }
 
   async getEmail(id: string): Promise<Email> {
