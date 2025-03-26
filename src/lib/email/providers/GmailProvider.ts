@@ -106,13 +106,32 @@ export class GmailProvider implements EmailProvider {
   // Add a new method to get accurate inbox count
   private async getInboxCount(): Promise<number> {
     try {
-      // Make a direct query to Gmail API for inbox messages
+      // First try the 'list' endpoint with q='in:inbox'
       const params = new URLSearchParams();
       params.append('q', 'in:inbox');
       params.append('maxResults', '1');
       params.append('includeSpamTrash', 'false');
       
       const countResponse = await this.fetchApi(`/messages?${params.toString()}`);
+      
+      // If the resultSizeEstimate is missing or small (< 1000), try retrieving the first page
+      // with a larger maxResults to get a better estimate
+      if (!countResponse.resultSizeEstimate || countResponse.resultSizeEstimate < 1000) {
+        const fullParams = new URLSearchParams();
+        fullParams.append('q', 'in:inbox');
+        fullParams.append('maxResults', '100'); // request maximum allowed
+        fullParams.append('includeSpamTrash', 'false');
+        // Only request message IDs to minimize data transfer
+        fullParams.append('fields', 'resultSizeEstimate,messages/id');
+        
+        const fullResponse = await this.fetchApi(`/messages?${fullParams.toString()}`);
+        if (fullResponse.resultSizeEstimate) {
+          console.log(`Enhanced inbox count: ${fullResponse.resultSizeEstimate}`);
+          return fullResponse.resultSizeEstimate;
+        }
+      }
+      
+      console.log(`Basic inbox count: ${countResponse.resultSizeEstimate}`);
       return countResponse.resultSizeEstimate || 0;
     } catch (error) {
       console.error('Error getting inbox count:', error);
@@ -259,6 +278,8 @@ export class GmailProvider implements EmailProvider {
         }
       }
 
+      // Always return the previously calculated totalCount, not the listResponse.resultSizeEstimate
+      // This ensures we use our more accurate count from getInboxCount or label info
       return {
         emails: allEmails,
         nextPageToken: listResponse.nextPageToken,

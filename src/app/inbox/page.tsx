@@ -63,6 +63,13 @@ export default function InboxPage() {
         limit: itemsPerPage
       });
       
+      console.log(`Inbox result: totalCount=${result.resultSizeEstimate}, emails=${result.emails?.length}`, result);
+      
+      // Always update total count regardless of emails returned
+      if (result.resultSizeEstimate > 0) {
+        setTotalEmails(result.resultSizeEstimate);
+      }
+      
       if (result.emails?.length) {
         if (pageToLoad === 1) {
           // Reset emails for first page
@@ -83,9 +90,6 @@ export default function InboxPage() {
             });
           }
         }
-        
-        // Always update total count
-        setTotalEmails(result.resultSizeEstimate);
       }
     } catch (e: any) {
       console.error('Error loading emails:', e);
