@@ -139,12 +139,34 @@ export class GmailProvider implements EmailProvider {
     }
   }
 
+  // Add a fallback method that directly counts actual inbox messages
+  private async countInboxMessages(): Promise<number> {
+    try {
+      // Use Gmail search syntax to get only messages in the inbox
+      const params = new URLSearchParams();
+      params.append('q', 'in:inbox');
+      params.append('maxResults', '1');
+      params.append('includeSpamTrash', 'false');
+      
+      const response = await this.fetchApi(`/messages?${params.toString()}`);
+      return response.resultSizeEstimate || 0;
+    } catch (error) {
+      console.error('Error counting inbox messages:', error);
+      return 0;
+    }
+  }
+
   // Add an improved method to get accurate inbox statistics
   private async getInboxStats(): Promise<{total: number, unread: number}> {
     try {
-      // Use the labels.get endpoint to get accurate statistics
+      // First try using the labels.get endpoint
       const response = await this.fetchApi(`/labels/INBOX`);
       
+      // Log the raw response for debugging
+      console.log('Raw label response:', response);
+      
+      // For Inbox, we specifically want messagesTotal, not threadsTotal
+      // This matches what Gmail UI shows in the inbox
       console.log('Inbox statistics from labels API:', {
         messagesTotal: response.messagesTotal,
         messagesUnread: response.messagesUnread,
@@ -152,13 +174,31 @@ export class GmailProvider implements EmailProvider {
         threadsUnread: response.threadsUnread
       });
       
+      // If the messagesTotal from label info doesn't seem right,
+      // fall back to direct counting
+      let total = response.messagesTotal || 0;
+      if (total > 50000) {
+        console.log('Label count seems too high, trying direct count');
+        const directCount = await this.countInboxMessages();
+        if (directCount > 0 && directCount < total) {
+          console.log(`Using direct count instead: ${directCount}`);
+          total = directCount;
+        }
+      }
+      
       return {
-        total: response.messagesTotal || 0,
+        total: total,
         unread: response.messagesUnread || 0
       };
     } catch (error) {
       console.error('Error getting inbox statistics:', error);
-      return { total: 0, unread: 0 };
+      // Fallback to direct count
+      try {
+        const count = await this.countInboxMessages();
+        return { total: count, unread: 0 };
+      } catch (e) {
+        return { total: 0, unread: 0 };
+      }
     }
   }
 
@@ -172,13 +212,15 @@ export class GmailProvider implements EmailProvider {
       // Default to INBOX if no labelIds provided
       const labelsToUse = labelIds?.length ? labelIds : ['INBOX'];
       
-      // If we're fetching INBOX, get statistics directly
+      // If we're fetching INBOX, get statistics directly from the INBOX label
       if (labelsToUse.includes('INBOX') && !query) {
         const stats = await this.getInboxStats();
         totalCount = stats.total;
         unreadCount = stats.unread;
         console.log(`Inbox stats: total=${totalCount}, unread=${unreadCount}`);
-      } else {
+      }
+      // For other labels or queries, use the existing methods
+      else {
         // For other labels, get label information which contains message counts
         const labelPromises = labelsToUse.map(labelId => this.getLabelInfo(labelId));
         const labelInfos = await Promise.all(labelPromises);
@@ -247,16 +289,21 @@ export class GmailProvider implements EmailProvider {
       const params = new URLSearchParams();
       params.append('maxResults', String(Math.min(limit, 100)));
       
-      // Add label filter to parameters
-      labelsToUse.forEach(labelId => {
-        params.append('labelIds', labelId);
-      });
-      
-      // For INBOX, explicitly add in:inbox query to ensure we only get messages currently in inbox
+      // Add label filter to parameters - always include INBOX for inbox queries
       if (labelsToUse.includes('INBOX') && !query) {
+        params.append('labelIds', 'INBOX');
+        // Explicitly add in:inbox query to ensure we only get messages currently in inbox
         params.append('q', 'in:inbox');
-      } else if (query) {
-        params.append('q', query);
+      } else {
+        // For other labels
+        labelsToUse.forEach(labelId => {
+          params.append('labelIds', labelId);
+        });
+        
+        // Add query filter if provided
+        if (query) {
+          params.append('q', query);
+        }
       }
       
       if (pageToken) {
