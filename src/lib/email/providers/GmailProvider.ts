@@ -461,4 +461,92 @@ ${originalEmail.bodyText || originalEmail.body}`
       .replace(/\//g, '_')
       .replace(/=+$/, '');
   }
+
+  // Add these new methods after the existing fetchEmails method
+  async getEmailCounts(): Promise<{ totalUnread: number; totalRead: number }> {
+    // Get unread count using search query
+    const unreadParams = new URLSearchParams();
+    unreadParams.append('q', 'label:inbox is:unread');
+    const unreadResponse = await this.fetchApi(`/messages?${unreadParams.toString()}`);
+    const totalUnread = unreadResponse.resultSizeEstimate || 0;
+
+    // Get total inbox count
+    const inboxParams = new URLSearchParams();
+    inboxParams.append('q', 'label:inbox');
+    const inboxResponse = await this.fetchApi(`/messages?${inboxParams.toString()}`);
+    const totalInbox = inboxResponse.resultSizeEstimate || 0;
+
+    return {
+      totalUnread,
+      totalRead: totalInbox - totalUnread
+    };
+  }
+
+  async fetchPaginatedEmails({ 
+    offset = 0, 
+    limit = 10, 
+    unreadOnly = false 
+  }: { 
+    offset: number; 
+    limit: number; 
+    unreadOnly: boolean;
+  }): Promise<FetchEmailsResult> {
+    // Build search query
+    const query = unreadOnly ? 'label:inbox is:unread' : 'label:inbox is:read';
+    const params = new URLSearchParams();
+    params.append('q', query);
+    params.append('maxResults', String(limit));
+    
+    if (offset > 0) {
+      // Use pageToken to get to the desired offset
+      let currentOffset = 0;
+      let pageToken: string | undefined;
+      
+      while (currentOffset < offset) {
+        const response = await this.fetchApi(`/messages?${params.toString()}`);
+        pageToken = response.nextPageToken;
+        if (!pageToken) break;
+        
+        currentOffset += response.messages?.length || 0;
+        params.set('pageToken', pageToken);
+      }
+    }
+    
+    // Fetch the actual page we want
+    const listResponse = await this.fetchApi(`/messages?${params.toString()}`);
+    
+    if (!listResponse.messages || listResponse.messages.length === 0) {
+      return {
+        emails: [],
+        nextPageToken: undefined,
+        resultSizeEstimate: 0
+      };
+    }
+
+    // Process messages in batches
+    const allEmails: Email[] = [];
+    const messagesToProcess = listResponse.messages;
+    
+    for (let i = 0; i < messagesToProcess.length; i += BATCH_SIZE) {
+      const batch = messagesToProcess.slice(i, i + BATCH_SIZE);
+      const messagePromises = batch.map((message: { id: string }) => this.getEmail(message.id));
+      
+      try {
+        const emails = await Promise.all(messagePromises);
+        allEmails.push(...emails.filter(Boolean));
+        
+        if (i + BATCH_SIZE < messagesToProcess.length) {
+          await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+        }
+      } catch (error) {
+        console.error('Error processing batch:', error);
+      }
+    }
+    
+    return {
+      emails: allEmails,
+      nextPageToken: listResponse.nextPageToken,
+      resultSizeEstimate: listResponse.resultSizeEstimate || 0
+    };
+  }
 } 

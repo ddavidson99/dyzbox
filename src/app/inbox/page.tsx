@@ -19,179 +19,137 @@ export default function InboxPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  const [emails, setEmails] = useState<Email[]>([]);
+  // Separate state for unread and read emails
+  const [unreadEmails, setUnreadEmails] = useState<Email[]>([]);
+  const [readEmails, setReadEmails] = useState<Email[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
-  const [nextPageToken, setNextPageToken] = useState<string | undefined>();
-  const [hasMoreEmails, setHasMoreEmails] = useState(true);
-  const [totalEmails, setTotalEmails] = useState(0);
-  const [loadingMore, setLoadingMore] = useState(false);
+  
+  // Pagination state
+  const [unreadPage, setUnreadPage] = useState(1);
+  const [readPage, setReadPage] = useState(1);
+  const [unreadItemsPerPage, setUnreadItemsPerPage] = useState(10);
+  const [readItemsPerPage, setReadItemsPerPage] = useState(10);
   const [totalUnread, setTotalUnread] = useState(0);
   const [totalRead, setTotalRead] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   
   // Refs for measuring containers
   const unreadContainerRef = useRef<HTMLDivElement>(null);
   const readContainerRef = useRef<HTMLDivElement>(null);
-  
-  // Pagination state
-  const [unreadItemsPerPage, setUnreadItemsPerPage] = useState(10);
-  const [readItemsPerPage, setReadItemsPerPage] = useState(10);
-  const [unreadPage, setUnreadPage] = useState(1);
-  const [readPage, setReadPage] = useState(1);
-  
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Get selected email ID from URL or state
   const selectedEmailId = searchParams.get('id') || (selectedEmail?.id || null);
-  
-  // Filter emails into unread and read
-  const unreadEmails = emails.filter(email => !email.isRead);
-  const readEmails = emails.filter(email => email.isRead);
-  
-  // Calculate pagination values
-  const unreadTotalPages = Math.ceil(unreadEmails.length / unreadItemsPerPage);
-  const readTotalPages = Math.ceil(readEmails.length / readItemsPerPage);
-  
-  const currentUnreadEmails = unreadEmails.slice(
-    (unreadPage - 1) * unreadItemsPerPage,
-    unreadPage * unreadItemsPerPage
-  );
-  
-  const currentReadEmails = readEmails.slice(
-    (readPage - 1) * readItemsPerPage,
-    readPage * readItemsPerPage
-  );
 
-  // Function to load more emails
-  const loadMoreEmails = async () => {
-    if (!session?.accessToken || !hasMoreEmails || loadingMore) return;
+  // Calculate pagination values
+  const unreadTotalPages = Math.ceil(totalUnread / unreadItemsPerPage);
+  const readTotalPages = Math.ceil(totalRead / readItemsPerPage);
+
+  // Function to fetch email counts
+  const fetchEmailCounts = async () => {
+    if (!session?.accessToken) return;
+    
+    try {
+      const emailProvider = new GmailProvider(session.accessToken as string);
+      const counts = await emailProvider.getEmailCounts();
+      setTotalUnread(counts.totalUnread);
+      setTotalRead(counts.totalRead);
+    } catch (e: any) {
+      console.error('Error fetching email counts:', e);
+      setError(e.message || 'Failed to fetch email counts');
+    }
+  };
+
+  // Function to load emails for a specific section
+  const loadEmails = async (isUnread: boolean, page: number, itemsPerPage: number) => {
+    if (!session?.accessToken || loadingMore) return;
     
     try {
       setLoadingMore(true);
       const emailProvider = new GmailProvider(session.accessToken as string);
-      const emailService = new EmailService(emailProvider);
       
-      const result = await emailService.getInbox({ 
-        pageToken: nextPageToken,
-        limit: 100 // Request maximum allowed
+      const offset = (page - 1) * itemsPerPage;
+      const result = await emailProvider.fetchPaginatedEmails({
+        offset,
+        limit: itemsPerPage,
+        unreadOnly: isUnread
       });
       
       if (result.emails?.length) {
-        // Update emails list
-        setEmails(prev => [...prev, ...result.emails]);
-        setNextPageToken(result.nextPageToken);
-        setHasMoreEmails(!!result.nextPageToken);
-        
-        // Update total counts - use resultSizeEstimate for total
-        setTotalEmails(result.resultSizeEstimate);
-        
-        // Update read/unread counts based on actual emails
-        const allEmails = [...emails, ...result.emails];
-        const unreadCount = allEmails.filter(email => !email.isRead).length;
-        setTotalUnread(unreadCount);
-        setTotalRead(allEmails.length - unreadCount);
-      } else {
-        setHasMoreEmails(false);
+        if (isUnread) {
+          setUnreadEmails(result.emails);
+        } else {
+          setReadEmails(result.emails);
+        }
       }
     } catch (e: any) {
-      console.error('Error loading more emails:', e);
-      setError(e.message || 'Failed to load more emails');
+      console.error('Error loading emails:', e);
+      setError(e.message || 'Failed to load emails');
     } finally {
       setLoadingMore(false);
     }
   };
 
-  // Function to check if we need to load more emails
-  const checkLoadMore = () => {
-    if (!hasMoreEmails || loadingMore) return;
-    
-    const totalLoadedEmails = emails.length;
-    const threshold = Math.max(50, Math.floor(totalLoadedEmails * 0.2)); // Load more when within 20% of loaded emails
-    
-    // Check if we need more emails for either read or unread sections
-    const needMoreForUnread = unreadEmails.length - (unreadPage * unreadItemsPerPage) < threshold;
-    const needMoreForRead = readEmails.length - (readPage * readItemsPerPage) < threshold;
-    
-    if (needMoreForUnread || needMoreForRead) {
-      loadMoreEmails();
-    }
-  };
-
+  // Initial load
   useEffect(() => {
-    async function fetchEmails() {
+    async function initialize() {
       if (!session?.accessToken) return;
       
       try {
         setLoading(true);
-        const emailProvider = new GmailProvider(session.accessToken as string);
-        const emailService = new EmailService(emailProvider);
+        await fetchEmailCounts();
         
-        // Fetch initial inbox emails
-        const result = await emailService.getInbox({ limit: 100 });
+        // Load initial pages for both sections
+        await Promise.all([
+          loadEmails(true, unreadPage, unreadItemsPerPage),
+          loadEmails(false, readPage, readItemsPerPage)
+        ]);
         
-        if (result.emails) {
-          setEmails(result.emails);
-          setNextPageToken(result.nextPageToken);
-          setHasMoreEmails(!!result.nextPageToken);
-          
-          // Set total from resultSizeEstimate
-          setTotalEmails(result.resultSizeEstimate);
-          
-          // Set read/unread counts based on actual loaded emails
-          const unreadCount = result.emails.filter(email => !email.isRead).length;
-          setTotalUnread(unreadCount);
-          setTotalRead(result.emails.length - unreadCount);
-          
-          setError(null);
-        }
+        setError(null);
       } catch (e: any) {
-        console.error('Error fetching inbox emails:', e);
-        setError(e.message || 'Failed to fetch inbox emails');
+        console.error('Error initializing inbox:', e);
+        setError(e.message || 'Failed to initialize inbox');
       } finally {
         setLoading(false);
       }
     }
     
-    fetchEmails();
+    initialize();
   }, [session]);
-  
-  // Reset pagination when emails change
+
+  // Load emails when page changes
   useEffect(() => {
-    setUnreadPage(1);
-    setReadPage(1);
-  }, [emails]);
-  
-  // Calculate items per page on mount and window resize
+    if (!loading) {
+      loadEmails(true, unreadPage, unreadItemsPerPage);
+    }
+  }, [unreadPage, unreadItemsPerPage]);
+
   useEffect(() => {
-    calculateItemsPerPage();
-    
-    const handleResize = () => {
-      calculateItemsPerPage();
-    };
-    
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  
+    if (!loading) {
+      loadEmails(false, readPage, readItemsPerPage);
+    }
+  }, [readPage, readItemsPerPage]);
+
   useEffect(() => {
     const params = new URLSearchParams(searchParams);
     const emailId = params.get('id');
     
     if (emailId) {
-      const email = emails.find(e => e.id === emailId);
+      const email = unreadEmails.find(e => e.id === emailId) || readEmails.find(e => e.id === emailId);
       if (email) {
         setSelectedEmail(email);
-      } else if (emails.length > 0) {
+      } else if (unreadEmails.length > 0 || readEmails.length > 0) {
         // Attempt to fetch selected email if not found in current list
         fetchEmailById(emailId);
       }
     } else {
       setSelectedEmail(null);
     }
-  }, [searchParams, emails]);
+  }, [searchParams, unreadEmails, readEmails]);
   
   const fetchEmailById = async (emailId: string) => {
     if (!session?.accessToken) return;
@@ -226,10 +184,11 @@ export default function InboxPage() {
     
     // Mark email as read in UI immediately
     if (!email.isRead) {
-      const updatedEmails = emails.map(e => 
+      const updatedEmails = [...unreadEmails, ...readEmails].map(e => 
         e.id === email.id ? { ...e, isRead: true } : e
       );
-      setEmails(updatedEmails);
+      setUnreadEmails(updatedEmails.filter(e => !e.isRead));
+      setReadEmails(updatedEmails.filter(e => e.isRead));
       
       // Update in backend
       if (session?.accessToken) {
@@ -255,11 +214,11 @@ export default function InboxPage() {
     await emailService.markAsRead(emailId);
     
     // Update the emails list to reflect the read status
-    setEmails(prevEmails => 
-      prevEmails.map(email => 
-        email.id === emailId ? { ...email, isRead: true } : email
-      )
+    const updatedEmails = [...unreadEmails, ...readEmails].map(email => 
+      email.id === emailId ? { ...email, isRead: true } : email
     );
+    setUnreadEmails(updatedEmails.filter(e => !e.isRead));
+    setReadEmails(updatedEmails.filter(e => e.isRead));
   };
   
   // Function to calculate items per page based on container height
@@ -282,10 +241,17 @@ export default function InboxPage() {
     setReadItemsPerPage(readItems);
   };
   
-  // Check for more emails when nearing the end of either section
+  // Calculate items per page on mount and window resize
   useEffect(() => {
-    checkLoadMore();
-  }, [unreadPage, readPage, emails.length]);
+    calculateItemsPerPage();
+    
+    const handleResize = () => {
+      calculateItemsPerPage();
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   return (
     <div ref={containerRef} className="h-full relative">
@@ -299,7 +265,7 @@ export default function InboxPage() {
                 Inbox
                 {!loading && (
                   <span className="text-sm font-normal text-gray-500 ml-2">
-                    ({totalEmails.toLocaleString()} total, {totalUnread.toLocaleString()} unread)
+                    ({(totalUnread + totalRead).toLocaleString()} total, {totalUnread.toLocaleString()} unread)
                   </span>
                 )}
               </h2>
@@ -345,17 +311,17 @@ export default function InboxPage() {
             </div>
           )}
           
-          {!loading && emails.length === 0 && !error ? (
+          {!loading && (unreadEmails.length === 0 && readEmails.length === 0) && !error ? (
             <p className="text-sm text-gray-500">No emails found in inbox</p>
           ) : (
             <div className="flex flex-col h-full">
               {/* Unread emails section - 60% of available height */}
-              {unreadEmails.length > 0 && (
+              {totalUnread > 0 && (
                 <div ref={unreadContainerRef} className="flex-grow" style={{ maxHeight: '60%' }}>
                   <div className="h-full flex flex-col">
                     <div className="overflow-y-auto flex-grow">
                       <ul className="space-y-1">
-                        {currentUnreadEmails.map((email) => (
+                        {unreadEmails.map((email) => (
                           <li key={email.id}>
                             <button 
                               onClick={() => handleEmailSelect(email)}
@@ -411,7 +377,7 @@ export default function InboxPage() {
               )}
               
               {/* Read emails section - 40% of available height */}
-              {readEmails.length > 0 && (
+              {totalRead > 0 && (
                 <div ref={readContainerRef} style={{ maxHeight: '40%' }} className="mt-3">
                   <div className="flex justify-between items-center mb-2">
                     <h3 className="text-sm font-medium text-gray-500">
@@ -447,7 +413,7 @@ export default function InboxPage() {
                   
                   <div className="overflow-y-auto" style={{ maxHeight: 'calc(100% - 30px)' }}>
                     <ul className="space-y-1">
-                      {currentReadEmails.map((email) => (
+                      {readEmails.map((email) => (
                         <li key={email.id}>
                           <button 
                             onClick={() => handleEmailSelect(email)}
