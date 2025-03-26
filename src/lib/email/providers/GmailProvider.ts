@@ -11,8 +11,8 @@ import {
 import { google } from 'googleapis';
 
 // Rate limiting constants
-const BATCH_SIZE = 5; // Reduced from 10 to 5
-const BATCH_DELAY = 2000; // Increased from 1000 to 2000ms
+const BATCH_SIZE = 25; // Increased from 5 to 25
+const BATCH_DELAY = 1000; // Reduced from 2000ms to 1000ms
 const MAX_RETRIES = 3; // Maximum number of retries for rate-limited requests
 
 export class GmailProvider implements EmailProvider {
@@ -96,7 +96,7 @@ export class GmailProvider implements EmailProvider {
   async fetchEmails({ limit = 100, pageToken, query, labelIds }: FetchEmailsOptions): Promise<FetchEmailsResult> {
     // Build query parameters
     const params = new URLSearchParams();
-    params.append('maxResults', String(Math.min(limit, 100))); // Increased from 20 to 100
+    params.append('maxResults', String(Math.min(limit, 100))); // Keep at 100 per request
     
     if (pageToken) {
       params.append('pageToken', pageToken);
@@ -120,7 +120,7 @@ export class GmailProvider implements EmailProvider {
       return {
         emails: [],
         nextPageToken: undefined,
-        resultSizeEstimate: 0
+        resultSizeEstimate: listResponse.resultSizeEstimate || 0
       };
     }
 
@@ -132,13 +132,18 @@ export class GmailProvider implements EmailProvider {
       const batch = messagesToProcess.slice(i, i + BATCH_SIZE);
       const messagePromises = batch.map((message: { id: string }) => this.getEmail(message.id));
       
-      // Wait for the current batch to complete
-      const emails = await Promise.all(messagePromises);
-      allEmails.push(...emails.filter(Boolean));
-      
-      // Add delay between batches to respect rate limits
-      if (i + BATCH_SIZE < messagesToProcess.length) {
-        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+      try {
+        // Wait for the current batch to complete
+        const emails = await Promise.all(messagePromises);
+        allEmails.push(...emails.filter(Boolean));
+        
+        // Add delay between batches to respect rate limits, but only if there are more batches
+        if (i + BATCH_SIZE < messagesToProcess.length) {
+          await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+        }
+      } catch (error) {
+        console.error('Error processing batch:', error);
+        // Continue with next batch even if current one fails
       }
     }
     

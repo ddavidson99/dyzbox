@@ -29,6 +29,8 @@ export default function InboxPage() {
   const [hasMoreEmails, setHasMoreEmails] = useState(true);
   const [totalEmails, setTotalEmails] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [totalUnread, setTotalUnread] = useState(0);
+  const [totalRead, setTotalRead] = useState(0);
   
   // Refs for measuring containers
   const unreadContainerRef = useRef<HTMLDivElement>(null);
@@ -72,12 +74,24 @@ export default function InboxPage() {
       const emailProvider = new GmailProvider(session.accessToken as string);
       const emailService = new EmailService(emailProvider);
       
-      const result = await emailService.getInbox({ pageToken: nextPageToken });
+      const result = await emailService.getInbox({ 
+        pageToken: nextPageToken,
+        limit: 100 // Request maximum allowed
+      });
       
       if (result.emails?.length) {
+        // Update emails list
         setEmails(prev => [...prev, ...result.emails]);
         setNextPageToken(result.nextPageToken);
         setHasMoreEmails(!!result.nextPageToken);
+        
+        // Update total counts
+        const newEmails = result.emails;
+        const unreadCount = newEmails.filter(email => !email.isRead).length;
+        const readCount = newEmails.filter(email => email.isRead).length;
+        
+        setTotalUnread(prev => prev + unreadCount);
+        setTotalRead(prev => prev + readCount);
         setTotalEmails(result.resultSizeEstimate || 0);
       } else {
         setHasMoreEmails(false);
@@ -92,17 +106,19 @@ export default function InboxPage() {
 
   // Function to check if we need to load more emails
   const checkLoadMore = () => {
-    const threshold = 20; // Load more when we're within 20 emails of the end
-    if (emails.length - (unreadPage * unreadItemsPerPage) < threshold ||
-        emails.length - (readPage * readItemsPerPage) < threshold) {
+    if (!hasMoreEmails || loadingMore) return;
+    
+    const totalLoadedEmails = emails.length;
+    const threshold = 50; // Load more when we're within 50 emails of the end
+    
+    // Check if we need more emails for either read or unread sections
+    const needMoreForUnread = unreadEmails.length - (unreadPage * unreadItemsPerPage) < threshold;
+    const needMoreForRead = readEmails.length - (readPage * readItemsPerPage) < threshold;
+    
+    if (needMoreForUnread || needMoreForRead) {
       loadMoreEmails();
     }
   };
-
-  // Effect to load more emails when approaching the end
-  useEffect(() => {
-    checkLoadMore();
-  }, [unreadPage, readPage]);
 
   useEffect(() => {
     async function fetchEmails() {
@@ -114,12 +130,22 @@ export default function InboxPage() {
         const emailService = new EmailService(emailProvider);
         
         // Fetch initial inbox emails
-        const result = await emailService.getInbox();
-        setEmails(result.emails || []);
-        setNextPageToken(result.nextPageToken);
-        setHasMoreEmails(!!result.nextPageToken);
-        setTotalEmails(result.resultSizeEstimate || 0);
-        setError(null);
+        const result = await emailService.getInbox({ limit: 100 });
+        
+        if (result.emails) {
+          setEmails(result.emails);
+          setNextPageToken(result.nextPageToken);
+          setHasMoreEmails(!!result.nextPageToken);
+          
+          // Set initial counts
+          const unreadCount = result.emails.filter(email => !email.isRead).length;
+          const readCount = result.emails.filter(email => email.isRead).length;
+          
+          setTotalUnread(unreadCount);
+          setTotalRead(readCount);
+          setTotalEmails(result.resultSizeEstimate || 0);
+          setError(null);
+        }
       } catch (e: any) {
         console.error('Error fetching inbox emails:', e);
         setError(e.message || 'Failed to fetch inbox emails');
@@ -267,7 +293,7 @@ export default function InboxPage() {
                 Inbox
                 {!loading && (
                   <span className="text-sm font-normal text-gray-500 ml-2">
-                    ({totalEmails} total, {unreadEmails.length} unread)
+                    ({totalEmails.toLocaleString()} total, {totalUnread.toLocaleString()} unread)
                   </span>
                 )}
               </h2>
@@ -382,7 +408,9 @@ export default function InboxPage() {
               {readEmails.length > 0 && (
                 <div ref={readContainerRef} style={{ maxHeight: '40%' }} className="mt-3">
                   <div className="flex justify-between items-center mb-2">
-                    <h3 className="text-sm font-medium text-gray-500">Previously Seen</h3>
+                    <h3 className="text-sm font-medium text-gray-500">
+                      Previously Seen ({totalRead.toLocaleString()})
+                    </h3>
                     {readTotalPages > 1 && (
                       <div className="flex items-center text-xs">
                         <button 
