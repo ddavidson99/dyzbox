@@ -92,20 +92,71 @@ export class GmailProvider implements EmailProvider {
     }));
   }
 
+  // Add a new method to get more accurate label count
+  private async getLabelInfo(labelId: string) {
+    try {
+      const response = await this.fetchApi(`/labels/${labelId}`);
+      return response;
+    } catch (error) {
+      console.error(`Error fetching label info for ${labelId}:`, error);
+      return null;
+    }
+  }
+
   // Email fetching methods
   async fetchEmails({ limit = 100, pageToken, query, labelIds }: FetchEmailsOptions): Promise<FetchEmailsResult> {
     try {
-      // First get total count with minimal data
-      const countParams = new URLSearchParams();
-      countParams.append('labelIds', 'INBOX');
-      countParams.append('maxResults', '1');
-      const countResponse = await this.fetchApi(`/messages?${countParams.toString()}`);
-      const totalCount = countResponse.resultSizeEstimate || 0;
+      // First get a more accurate total count using label information
+      let totalCount = 0;
+      
+      // Default to INBOX if no labelIds provided
+      const labelsToUse = labelIds?.length ? labelIds : ['INBOX'];
+      
+      // Get label information which contains more accurate message counts
+      const labelPromises = labelsToUse.map(labelId => this.getLabelInfo(labelId));
+      const labelInfos = await Promise.all(labelPromises);
+      
+      // Use messagesTotal from label info if available
+      const validLabelInfos = labelInfos.filter(Boolean);
+      if (validLabelInfos.length > 0) {
+        totalCount = validLabelInfos.reduce((sum, label) => sum + (label.messagesTotal || 0), 0);
+      }
+      
+      // If we couldn't get count from labels, fall back to a direct query count
+      if (totalCount === 0) {
+        // Use q parameter to construct a more specific query for accurate counts
+        const countParams = new URLSearchParams();
+        
+        // Add label filter to query if provided
+        if (labelsToUse.includes('INBOX')) {
+          countParams.append('q', 'in:inbox');
+        } else {
+          labelsToUse.forEach(labelId => {
+            countParams.append('labelIds', labelId);
+          });
+        }
+        
+        // Request a small response to get count estimate
+        countParams.append('maxResults', '1');
+        
+        // Fetch count using direct query
+        const countResponse = await this.fetchApi(`/messages?${countParams.toString()}`);
+        totalCount = countResponse.resultSizeEstimate || 0;
+      }
 
       // Build query parameters for actual fetch
       const params = new URLSearchParams();
       params.append('maxResults', String(Math.min(limit, 100)));
-      params.append('labelIds', 'INBOX');
+      
+      // Add label filter to parameters
+      labelsToUse.forEach(labelId => {
+        params.append('labelIds', labelId);
+      });
+      
+      // Add query filter if provided
+      if (query) {
+        params.append('q', query);
+      }
       
       if (pageToken) {
         params.append('pageToken', pageToken);

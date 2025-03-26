@@ -22,6 +22,7 @@ export default function InboxPage() {
   // State for emails and UI
   const [emails, setEmails] = useState<Email[]>([]);
   const [loading, setLoading] = useState(true);
+  const [countLoading, setCountLoading] = useState(true); // Loading state for count
   const [error, setError] = useState<string | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [emailLoading, setEmailLoading] = useState(false);
@@ -46,6 +47,9 @@ export default function InboxPage() {
     
     try {
       setLoadingMore(true);
+      if (pageToLoad === 1) {
+        setCountLoading(true); // Start loading count for first page
+      }
       setError(null);
       
       const emailProvider = new GmailProvider(session.accessToken as string);
@@ -93,13 +97,26 @@ export default function InboxPage() {
       }
     } finally {
       setLoadingMore(false);
+      // Only mark loading as complete when count is done or on error
+      if (pageToLoad === 1) {
+        setCountLoading(false);
+      }
     }
+  };
+
+  // Function to refresh inbox
+  const refreshInbox = () => {
+    setLoading(true);
+    setCountLoading(true);
+    setPage(1);
+    loadEmails(1).finally(() => setLoading(false));
   };
 
   // Initial load
   useEffect(() => {
     if (session?.accessToken) {
       setLoading(true);
+      setCountLoading(true);
       loadEmails(1).finally(() => setLoading(false));
     }
   }, [session]);
@@ -156,32 +173,45 @@ export default function InboxPage() {
               <Inbox className="h-5 w-5 mr-2 text-gray-600" />
               <h2 className="text-lg font-semibold">
                 Inbox
-                {!loading && (
+                {!countLoading ? (
                   <span className="text-sm font-normal text-gray-500 ml-2">
                     ({totalEmails.toLocaleString()} total)
+                  </span>
+                ) : (
+                  <span className="text-sm font-normal text-gray-400 ml-2">
+                    (counting...)
                   </span>
                 )}
               </h2>
             </div>
             
             <div className="flex items-center space-x-2">
+              <button
+                onClick={refreshInbox}
+                disabled={loading || loadingMore}
+                className="text-gray-500 hover:bg-gray-100 p-1 rounded"
+                aria-label="Refresh inbox"
+              >
+                <ArrowsClockwise size={16} />
+              </button>
+              
               {totalPages > 1 && (
                 <div className="flex items-center text-xs">
                   <button 
                     onClick={handlePreviousPage}
-                    disabled={page === 1 || loadingMore}
-                    className={`p-1 rounded ${page === 1 || loadingMore ? 'text-gray-300' : 'text-gray-500 hover:bg-gray-100'}`}
+                    disabled={page === 1 || loadingMore || loading}
+                    className={`p-1 rounded ${page === 1 || loadingMore || loading ? 'text-gray-300' : 'text-gray-500 hover:bg-gray-100'}`}
                     aria-label="Previous page"
                   >
                     <CaretLeft size={14} weight="bold" />
                   </button>
                   <span className="mx-2 text-gray-600">
-                    {page} / {totalPages}
+                    {page} / {!countLoading ? totalPages : '...'}
                   </span>
                   <button 
                     onClick={handleNextPage}
-                    disabled={page >= totalPages || loadingMore || !pageTokens[page - 1]}
-                    className={`p-1 rounded ${page >= totalPages || loadingMore || !pageTokens[page - 1] ? 'text-gray-300' : 'text-gray-500 hover:bg-gray-100'}`}
+                    disabled={page >= totalPages || loadingMore || loading || !pageTokens[page - 1] || countLoading}
+                    className={`p-1 rounded ${page >= totalPages || loadingMore || loading || !pageTokens[page - 1] || countLoading ? 'text-gray-300' : 'text-gray-500 hover:bg-gray-100'}`}
                     aria-label="Next page"
                   >
                     <CaretRight size={14} weight="bold" />
@@ -245,6 +275,18 @@ export default function InboxPage() {
               {loadingMore && (
                 <div className="text-center py-2">
                   <p className="text-sm text-gray-500">Loading more emails...</p>
+                </div>
+              )}
+              
+              {!loading && !loadingMore && page < totalPages && (
+                <div className="text-center py-2">
+                  <button
+                    onClick={() => handleNextPage()}
+                    disabled={!pageTokens[page - 1] || countLoading}
+                    className="text-sm text-blue-500 hover:text-blue-700 disabled:text-gray-400"
+                  >
+                    Load more emails
+                  </button>
                 </div>
               )}
             </div>
