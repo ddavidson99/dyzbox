@@ -94,32 +94,22 @@ export class GmailProvider implements EmailProvider {
 
   // Email fetching methods
   async fetchEmails({ limit = 100, pageToken, query, labelIds }: FetchEmailsOptions): Promise<FetchEmailsResult> {
-    // Build query parameters
+    // First get total count with minimal data
+    const countParams = new URLSearchParams();
+    countParams.append('labelIds', 'INBOX');
+    const countResponse = await this.fetchApi(`/messages?${countParams.toString()}`);
+    const totalCount = countResponse.resultSizeEstimate || 0;
+    
+    // Build query parameters for actual fetch
     const params = new URLSearchParams();
-    params.append('maxResults', String(Math.min(limit, 100))); // Keep at 100 per request
+    params.append('maxResults', String(Math.min(limit, 100)));
+    params.append('labelIds', 'INBOX');
     
     if (pageToken) {
       params.append('pageToken', pageToken);
     }
     
-    if (query) {
-      params.append('q', query);
-    }
-    
-    // Handle labelIds properly
-    if (labelIds && labelIds.length > 0) {
-      labelIds.forEach(labelId => {
-        params.append('labelIds', labelId);
-      });
-    }
-    
-    // First get total count with minimal data
-    const countParams = new URLSearchParams(params);
-    countParams.set('maxResults', '1');
-    const countResponse = await this.fetchApi(`/messages?${countParams.toString()}`);
-    const totalCount = countResponse.resultSizeEstimate || 0;
-    
-    // Then fetch actual messages
+    // Fetch messages
     const listResponse = await this.fetchApi(`/messages?${params.toString()}`);
     
     if (!listResponse.messages || listResponse.messages.length === 0) {
@@ -130,7 +120,7 @@ export class GmailProvider implements EmailProvider {
       };
     }
 
-    // Process messages in batches with increased batch size
+    // Process messages in batches
     const allEmails: Email[] = [];
     const messagesToProcess = listResponse.messages;
     
@@ -139,24 +129,21 @@ export class GmailProvider implements EmailProvider {
       const messagePromises = batch.map((message: { id: string }) => this.getEmail(message.id));
       
       try {
-        // Wait for the current batch to complete
         const emails = await Promise.all(messagePromises);
         allEmails.push(...emails.filter(Boolean));
         
-        // Add delay between batches to respect rate limits, but only if there are more batches
         if (i + BATCH_SIZE < messagesToProcess.length) {
           await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
         }
       } catch (error) {
         console.error('Error processing batch:', error);
-        // Continue with next batch even if current one fails
       }
     }
     
     return {
       emails: allEmails,
       nextPageToken: listResponse.nextPageToken,
-      resultSizeEstimate: totalCount // Use the accurate total count
+      resultSizeEstimate: totalCount
     };
   }
 
@@ -460,93 +447,5 @@ ${originalEmail.bodyText || originalEmail.body}`
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/, '');
-  }
-
-  // Add these new methods after the existing fetchEmails method
-  async getEmailCounts(): Promise<{ totalUnread: number; totalRead: number }> {
-    // Get unread count using search query
-    const unreadParams = new URLSearchParams();
-    unreadParams.append('q', 'label:inbox is:unread');
-    const unreadResponse = await this.fetchApi(`/messages?${unreadParams.toString()}`);
-    const totalUnread = unreadResponse.resultSizeEstimate || 0;
-
-    // Get total inbox count
-    const inboxParams = new URLSearchParams();
-    inboxParams.append('q', 'label:inbox');
-    const inboxResponse = await this.fetchApi(`/messages?${inboxParams.toString()}`);
-    const totalInbox = inboxResponse.resultSizeEstimate || 0;
-
-    return {
-      totalUnread,
-      totalRead: totalInbox - totalUnread
-    };
-  }
-
-  async fetchPaginatedEmails({ 
-    offset = 0, 
-    limit = 10, 
-    unreadOnly = false 
-  }: { 
-    offset: number; 
-    limit: number; 
-    unreadOnly: boolean;
-  }): Promise<FetchEmailsResult> {
-    // Build search query
-    const query = unreadOnly ? 'label:inbox is:unread' : 'label:inbox is:read';
-    const params = new URLSearchParams();
-    params.append('q', query);
-    params.append('maxResults', String(limit));
-    
-    if (offset > 0) {
-      // Use pageToken to get to the desired offset
-      let currentOffset = 0;
-      let pageToken: string | undefined;
-      
-      while (currentOffset < offset) {
-        const response = await this.fetchApi(`/messages?${params.toString()}`);
-        pageToken = response.nextPageToken;
-        if (!pageToken) break;
-        
-        currentOffset += response.messages?.length || 0;
-        params.set('pageToken', pageToken);
-      }
-    }
-    
-    // Fetch the actual page we want
-    const listResponse = await this.fetchApi(`/messages?${params.toString()}`);
-    
-    if (!listResponse.messages || listResponse.messages.length === 0) {
-      return {
-        emails: [],
-        nextPageToken: undefined,
-        resultSizeEstimate: 0
-      };
-    }
-
-    // Process messages in batches
-    const allEmails: Email[] = [];
-    const messagesToProcess = listResponse.messages;
-    
-    for (let i = 0; i < messagesToProcess.length; i += BATCH_SIZE) {
-      const batch = messagesToProcess.slice(i, i + BATCH_SIZE);
-      const messagePromises = batch.map((message: { id: string }) => this.getEmail(message.id));
-      
-      try {
-        const emails = await Promise.all(messagePromises);
-        allEmails.push(...emails.filter(Boolean));
-        
-        if (i + BATCH_SIZE < messagesToProcess.length) {
-          await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
-        }
-      } catch (error) {
-        console.error('Error processing batch:', error);
-      }
-    }
-    
-    return {
-      emails: allEmails,
-      nextPageToken: listResponse.nextPageToken,
-      resultSizeEstimate: listResponse.resultSizeEstimate || 0
-    };
   }
 } 
