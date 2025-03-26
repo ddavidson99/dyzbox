@@ -16,7 +16,7 @@ export class EmailService {
 
   async getInbox(options?: FetchEmailsOptions) {
     return this.provider.fetchEmails({
-      limit: 500,
+      limit: 100,
       ...options,
       labelIds: ['INBOX']
     });

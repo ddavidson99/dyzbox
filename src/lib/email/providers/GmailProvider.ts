@@ -93,10 +93,10 @@ export class GmailProvider implements EmailProvider {
   }
 
   // Email fetching methods
-  async fetchEmails({ limit = 20, pageToken, query, labelIds }: FetchEmailsOptions): Promise<FetchEmailsResult> {
+  async fetchEmails({ limit = 100, pageToken, query, labelIds }: FetchEmailsOptions): Promise<FetchEmailsResult> {
     // Build query parameters
     const params = new URLSearchParams();
-    params.append('maxResults', String(Math.min(limit, 20))); // Reduced from 100 to 20
+    params.append('maxResults', String(Math.min(limit, 100))); // Increased from 20 to 100
     
     if (pageToken) {
       params.append('pageToken', pageToken);
@@ -124,9 +124,9 @@ export class GmailProvider implements EmailProvider {
       };
     }
 
-    // Process messages in batches
+    // Process messages in batches with increased batch size
     const allEmails: Email[] = [];
-    const messagesToProcess = listResponse.messages.slice(0, Math.min(20, listResponse.messages.length));
+    const messagesToProcess = listResponse.messages;
     
     for (let i = 0; i < messagesToProcess.length; i += BATCH_SIZE) {
       const batch = messagesToProcess.slice(i, i + BATCH_SIZE);
@@ -134,9 +134,9 @@ export class GmailProvider implements EmailProvider {
       
       // Wait for the current batch to complete
       const emails = await Promise.all(messagePromises);
-      allEmails.push(...emails);
+      allEmails.push(...emails.filter(Boolean));
       
-      // Add delay between batches
+      // Add delay between batches to respect rate limits
       if (i + BATCH_SIZE < messagesToProcess.length) {
         await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
       }
@@ -145,7 +145,7 @@ export class GmailProvider implements EmailProvider {
     return {
       emails: allEmails,
       nextPageToken: listResponse.nextPageToken,
-      resultSizeEstimate: listResponse.resultSizeEstimate || allEmails.length
+      resultSizeEstimate: listResponse.resultSizeEstimate || 0
     };
   }
 

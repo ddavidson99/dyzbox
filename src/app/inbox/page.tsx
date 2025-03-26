@@ -25,14 +25,18 @@ export default function InboxPage() {
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [emailLoading, setEmailLoading] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [nextPageToken, setNextPageToken] = useState<string | undefined>();
+  const [hasMoreEmails, setHasMoreEmails] = useState(true);
+  const [totalEmails, setTotalEmails] = useState(0);
+  const [loadingMore, setLoadingMore] = useState(false);
   
   // Refs for measuring containers
   const unreadContainerRef = useRef<HTMLDivElement>(null);
   const readContainerRef = useRef<HTMLDivElement>(null);
   
   // Pagination state
-  const [unreadItemsPerPage, setUnreadItemsPerPage] = useState(5);
-  const [readItemsPerPage, setReadItemsPerPage] = useState(5);
+  const [unreadItemsPerPage, setUnreadItemsPerPage] = useState(10);
+  const [readItemsPerPage, setReadItemsPerPage] = useState(10);
   const [unreadPage, setUnreadPage] = useState(1);
   const [readPage, setReadPage] = useState(1);
   
@@ -58,27 +62,48 @@ export default function InboxPage() {
     (readPage - 1) * readItemsPerPage,
     readPage * readItemsPerPage
   );
-  
-  // Function to calculate items per page based on container height
-  const calculateItemsPerPage = () => {
-    if (!containerRef.current) return;
+
+  // Function to load more emails
+  const loadMoreEmails = async () => {
+    if (!session?.accessToken || !hasMoreEmails || loadingMore) return;
     
-    const containerHeight = containerRef.current.clientHeight;
-    const emailListHeight = containerHeight - 100; // Subtract header and padding
-    
-    // 60% for unread, 40% for read
-    const unreadHeight = emailListHeight * 0.6;
-    const readHeight = emailListHeight * 0.4;
-    
-    // Calculate how many items can fit in each section, adding a buffer to maximize space
-    // Add 0.9 to round up more aggressively and fill available space
-    const unreadItems = Math.max(1, Math.floor(unreadHeight / EMAIL_ITEM_HEIGHT + 0.9));
-    const readItems = Math.max(1, Math.floor(readHeight / EMAIL_ITEM_HEIGHT + 0.9));
-    
-    setUnreadItemsPerPage(unreadItems);
-    setReadItemsPerPage(readItems);
+    try {
+      setLoadingMore(true);
+      const emailProvider = new GmailProvider(session.accessToken as string);
+      const emailService = new EmailService(emailProvider);
+      
+      const result = await emailService.getInbox({ pageToken: nextPageToken });
+      
+      if (result.emails?.length) {
+        setEmails(prev => [...prev, ...result.emails]);
+        setNextPageToken(result.nextPageToken);
+        setHasMoreEmails(!!result.nextPageToken);
+        setTotalEmails(result.resultSizeEstimate || 0);
+      } else {
+        setHasMoreEmails(false);
+      }
+    } catch (e: any) {
+      console.error('Error loading more emails:', e);
+      setError(e.message || 'Failed to load more emails');
+    } finally {
+      setLoadingMore(false);
+    }
   };
-  
+
+  // Function to check if we need to load more emails
+  const checkLoadMore = () => {
+    const threshold = 20; // Load more when we're within 20 emails of the end
+    if (emails.length - (unreadPage * unreadItemsPerPage) < threshold ||
+        emails.length - (readPage * readItemsPerPage) < threshold) {
+      loadMoreEmails();
+    }
+  };
+
+  // Effect to load more emails when approaching the end
+  useEffect(() => {
+    checkLoadMore();
+  }, [unreadPage, readPage]);
+
   useEffect(() => {
     async function fetchEmails() {
       if (!session?.accessToken) return;
@@ -88,9 +113,12 @@ export default function InboxPage() {
         const emailProvider = new GmailProvider(session.accessToken as string);
         const emailService = new EmailService(emailProvider);
         
-        // Fetch inbox emails
-        const fetchedEmails = await emailService.getInbox();
-        setEmails(fetchedEmails.emails || []);
+        // Fetch initial inbox emails
+        const result = await emailService.getInbox();
+        setEmails(result.emails || []);
+        setNextPageToken(result.nextPageToken);
+        setHasMoreEmails(!!result.nextPageToken);
+        setTotalEmails(result.resultSizeEstimate || 0);
         setError(null);
       } catch (e: any) {
         console.error('Error fetching inbox emails:', e);
@@ -207,6 +235,26 @@ export default function InboxPage() {
     );
   };
   
+  // Function to calculate items per page based on container height
+  const calculateItemsPerPage = () => {
+    if (!containerRef.current) return;
+    
+    const containerHeight = containerRef.current.clientHeight;
+    const emailListHeight = containerHeight - 100; // Subtract header and padding
+    
+    // 60% for unread, 40% for read
+    const unreadHeight = emailListHeight * 0.6;
+    const readHeight = emailListHeight * 0.4;
+    
+    // Calculate how many items can fit in each section, adding a buffer to maximize space
+    // Add 0.9 to round up more aggressively and fill available space
+    const unreadItems = Math.max(1, Math.floor(unreadHeight / EMAIL_ITEM_HEIGHT + 0.9));
+    const readItems = Math.max(1, Math.floor(readHeight / EMAIL_ITEM_HEIGHT + 0.9));
+    
+    setUnreadItemsPerPage(unreadItems);
+    setReadItemsPerPage(readItems);
+  };
+  
   return (
     <div ref={containerRef} className="h-full relative">
       {/* Email list */}
@@ -219,7 +267,7 @@ export default function InboxPage() {
                 Inbox
                 {!loading && (
                   <span className="text-sm font-normal text-gray-500 ml-2">
-                    ({unreadEmails.length} unread)
+                    ({totalEmails} total, {unreadEmails.length} unread)
                   </span>
                 )}
               </h2>
@@ -414,6 +462,12 @@ export default function InboxPage() {
                         </li>
                       ))}
                     </ul>
+                    
+                    {loadingMore && (
+                      <div className="text-center py-2">
+                        <p className="text-sm text-gray-500">Loading more emails...</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
