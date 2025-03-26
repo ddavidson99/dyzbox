@@ -113,14 +113,20 @@ export class GmailProvider implements EmailProvider {
       });
     }
     
-    // Fetch message list
+    // First get total count with minimal data
+    const countParams = new URLSearchParams(params);
+    countParams.set('maxResults', '1');
+    const countResponse = await this.fetchApi(`/messages?${countParams.toString()}`);
+    const totalCount = countResponse.resultSizeEstimate || 0;
+    
+    // Then fetch actual messages
     const listResponse = await this.fetchApi(`/messages?${params.toString()}`);
     
     if (!listResponse.messages || listResponse.messages.length === 0) {
       return {
         emails: [],
         nextPageToken: undefined,
-        resultSizeEstimate: listResponse.resultSizeEstimate || 0
+        resultSizeEstimate: totalCount
       };
     }
 
@@ -150,7 +156,7 @@ export class GmailProvider implements EmailProvider {
     return {
       emails: allEmails,
       nextPageToken: listResponse.nextPageToken,
-      resultSizeEstimate: listResponse.resultSizeEstimate || 0
+      resultSizeEstimate: totalCount // Use the accurate total count
     };
   }
 

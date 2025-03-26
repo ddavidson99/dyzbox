@@ -85,14 +85,14 @@ export default function InboxPage() {
         setNextPageToken(result.nextPageToken);
         setHasMoreEmails(!!result.nextPageToken);
         
-        // Update total counts
-        const newEmails = result.emails;
-        const unreadCount = newEmails.filter(email => !email.isRead).length;
-        const readCount = newEmails.filter(email => email.isRead).length;
+        // Update total counts - use resultSizeEstimate for total
+        setTotalEmails(result.resultSizeEstimate);
         
-        setTotalUnread(prev => prev + unreadCount);
-        setTotalRead(prev => prev + readCount);
-        setTotalEmails(result.resultSizeEstimate || 0);
+        // Update read/unread counts based on actual emails
+        const allEmails = [...emails, ...result.emails];
+        const unreadCount = allEmails.filter(email => !email.isRead).length;
+        setTotalUnread(unreadCount);
+        setTotalRead(allEmails.length - unreadCount);
       } else {
         setHasMoreEmails(false);
       }
@@ -109,7 +109,7 @@ export default function InboxPage() {
     if (!hasMoreEmails || loadingMore) return;
     
     const totalLoadedEmails = emails.length;
-    const threshold = 50; // Load more when we're within 50 emails of the end
+    const threshold = Math.max(50, Math.floor(totalLoadedEmails * 0.2)); // Load more when within 20% of loaded emails
     
     // Check if we need more emails for either read or unread sections
     const needMoreForUnread = unreadEmails.length - (unreadPage * unreadItemsPerPage) < threshold;
@@ -137,13 +137,14 @@ export default function InboxPage() {
           setNextPageToken(result.nextPageToken);
           setHasMoreEmails(!!result.nextPageToken);
           
-          // Set initial counts
-          const unreadCount = result.emails.filter(email => !email.isRead).length;
-          const readCount = result.emails.filter(email => email.isRead).length;
+          // Set total from resultSizeEstimate
+          setTotalEmails(result.resultSizeEstimate);
           
+          // Set read/unread counts based on actual loaded emails
+          const unreadCount = result.emails.filter(email => !email.isRead).length;
           setTotalUnread(unreadCount);
-          setTotalRead(readCount);
-          setTotalEmails(result.resultSizeEstimate || 0);
+          setTotalRead(result.emails.length - unreadCount);
+          
           setError(null);
         }
       } catch (e: any) {
@@ -280,6 +281,11 @@ export default function InboxPage() {
     setUnreadItemsPerPage(unreadItems);
     setReadItemsPerPage(readItems);
   };
+  
+  // Check for more emails when nearing the end of either section
+  useEffect(() => {
+    checkLoadMore();
+  }, [unreadPage, readPage, emails.length]);
   
   return (
     <div ref={containerRef} className="h-full relative">
