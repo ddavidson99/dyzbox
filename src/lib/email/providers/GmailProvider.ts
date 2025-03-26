@@ -103,6 +103,23 @@ export class GmailProvider implements EmailProvider {
     }
   }
 
+  // Add a new method to get accurate inbox count
+  private async getInboxCount(): Promise<number> {
+    try {
+      // Make a direct query to Gmail API for inbox messages
+      const params = new URLSearchParams();
+      params.append('q', 'in:inbox');
+      params.append('maxResults', '1');
+      params.append('includeSpamTrash', 'false');
+      
+      const countResponse = await this.fetchApi(`/messages?${params.toString()}`);
+      return countResponse.resultSizeEstimate || 0;
+    } catch (error) {
+      console.error('Error getting inbox count:', error);
+      return 0;
+    }
+  }
+
   // Email fetching methods
   async fetchEmails({ limit = 100, pageToken, query, labelIds }: FetchEmailsOptions): Promise<FetchEmailsResult> {
     try {
@@ -112,36 +129,73 @@ export class GmailProvider implements EmailProvider {
       // Default to INBOX if no labelIds provided
       const labelsToUse = labelIds?.length ? labelIds : ['INBOX'];
       
-      // Get label information which contains more accurate message counts
-      const labelPromises = labelsToUse.map(labelId => this.getLabelInfo(labelId));
-      const labelInfos = await Promise.all(labelPromises);
-      
-      // Use messagesTotal from label info if available
-      const validLabelInfos = labelInfos.filter(Boolean);
-      if (validLabelInfos.length > 0) {
-        totalCount = validLabelInfos.reduce((sum, label) => sum + (label.messagesTotal || 0), 0);
-      }
-      
-      // If we couldn't get count from labels, fall back to a direct query count
-      if (totalCount === 0) {
-        // Use q parameter to construct a more specific query for accurate counts
-        const countParams = new URLSearchParams();
+      // If we're fetching INBOX, get a direct count
+      if (labelsToUse.includes('INBOX') && !query) {
+        totalCount = await this.getInboxCount();
+        console.log(`Direct inbox count: ${totalCount}`);
+      } else {
+        // For other labels, get label information which contains message counts
+        const labelPromises = labelsToUse.map(labelId => this.getLabelInfo(labelId));
+        const labelInfos = await Promise.all(labelPromises);
         
-        // Add label filter to query if provided
-        if (labelsToUse.includes('INBOX')) {
-          countParams.append('q', 'in:inbox');
-        } else {
-          labelsToUse.forEach(labelId => {
-            countParams.append('labelIds', labelId);
-          });
+        // Add debug logging
+        console.log("Label information:", labelInfos.map(label => {
+          if (!label) return 'null';
+          return {
+            id: label.id,
+            name: label.name,
+            type: label.type,
+            messagesTotal: label.messagesTotal,
+            messagesUnread: label.messagesUnread,
+            threadsTotal: label.threadsTotal,
+            threadsUnread: label.threadsUnread
+          };
+        }));
+        
+        // Use messagesTotal from label info if available
+        const validLabelInfos = labelInfos.filter(Boolean);
+        if (validLabelInfos.length > 0) {
+          // For INBOX specifically, we want messagesInInbox (not total across all labels)
+          // This matches what Gmail UI shows
+          for (const label of validLabelInfos) {
+            if (label.id === 'INBOX') {
+              // messagesTotal corresponds to messages currently in inbox 
+              // (not including those that were previously in inbox but archived)
+              totalCount = label.messagesTotal || 0;
+              console.log(`Using INBOX messagesTotal: ${totalCount}`);
+              break;
+            }
+          }
+          
+          // If we couldn't find INBOX specifically, sum up the counts
+          if (totalCount === 0) {
+            totalCount = validLabelInfos.reduce((sum, label) => sum + (label.messagesTotal || 0), 0);
+            console.log(`Falling back to sum of all labels: ${totalCount}`);
+          }
         }
         
-        // Request a small response to get count estimate
-        countParams.append('maxResults', '1');
-        
-        // Fetch count using direct query
-        const countResponse = await this.fetchApi(`/messages?${countParams.toString()}`);
-        totalCount = countResponse.resultSizeEstimate || 0;
+        // If we couldn't get count from labels, fall back to a direct query count
+        if (totalCount === 0) {
+          // Use q parameter to construct a more specific query for accurate counts
+          const countParams = new URLSearchParams();
+          
+          // Add label filter to query if provided
+          if (labelsToUse.includes('INBOX')) {
+            countParams.append('q', 'in:inbox');
+          } else {
+            labelsToUse.forEach(labelId => {
+              countParams.append('labelIds', labelId);
+            });
+          }
+          
+          // Request a small response to get count estimate
+          countParams.append('maxResults', '1');
+          
+          // Fetch count using direct query
+          const countResponse = await this.fetchApi(`/messages?${countParams.toString()}`);
+          totalCount = countResponse.resultSizeEstimate || 0;
+          console.log(`Using resultSizeEstimate fallback: ${totalCount}`);
+        }
       }
 
       // Build query parameters for actual fetch
@@ -153,8 +207,10 @@ export class GmailProvider implements EmailProvider {
         params.append('labelIds', labelId);
       });
       
-      // Add query filter if provided
-      if (query) {
+      // For INBOX, explicitly add in:inbox query to ensure we only get messages currently in inbox
+      if (labelsToUse.includes('INBOX') && !query) {
+        params.append('q', 'in:inbox');
+      } else if (query) {
         params.append('q', query);
       }
       
