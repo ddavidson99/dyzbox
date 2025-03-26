@@ -139,19 +139,45 @@ export class GmailProvider implements EmailProvider {
     }
   }
 
+  // Add an improved method to get accurate inbox statistics
+  private async getInboxStats(): Promise<{total: number, unread: number}> {
+    try {
+      // Use the labels.get endpoint to get accurate statistics
+      const response = await this.fetchApi(`/labels/INBOX`);
+      
+      console.log('Inbox statistics from labels API:', {
+        messagesTotal: response.messagesTotal,
+        messagesUnread: response.messagesUnread,
+        threadsTotal: response.threadsTotal,
+        threadsUnread: response.threadsUnread
+      });
+      
+      return {
+        total: response.messagesTotal || 0,
+        unread: response.messagesUnread || 0
+      };
+    } catch (error) {
+      console.error('Error getting inbox statistics:', error);
+      return { total: 0, unread: 0 };
+    }
+  }
+
   // Email fetching methods
   async fetchEmails({ limit = 100, pageToken, query, labelIds }: FetchEmailsOptions): Promise<FetchEmailsResult> {
     try {
-      // First get a more accurate total count using label information
+      // Get accurate counts using inbox statistics
       let totalCount = 0;
+      let unreadCount = 0;
       
       // Default to INBOX if no labelIds provided
       const labelsToUse = labelIds?.length ? labelIds : ['INBOX'];
       
-      // If we're fetching INBOX, get a direct count
+      // If we're fetching INBOX, get statistics directly
       if (labelsToUse.includes('INBOX') && !query) {
-        totalCount = await this.getInboxCount();
-        console.log(`Direct inbox count: ${totalCount}`);
+        const stats = await this.getInboxStats();
+        totalCount = stats.total;
+        unreadCount = stats.unread;
+        console.log(`Inbox stats: total=${totalCount}, unread=${unreadCount}`);
       } else {
         // For other labels, get label information which contains message counts
         const labelPromises = labelsToUse.map(labelId => this.getLabelInfo(labelId));
@@ -245,7 +271,8 @@ export class GmailProvider implements EmailProvider {
         return {
           emails: [],
           nextPageToken: undefined,
-          resultSizeEstimate: totalCount
+          resultSizeEstimate: totalCount,
+          unreadCount: unreadCount
         };
       }
 
@@ -283,7 +310,8 @@ export class GmailProvider implements EmailProvider {
       return {
         emails: allEmails,
         nextPageToken: listResponse.nextPageToken,
-        resultSizeEstimate: totalCount
+        resultSizeEstimate: totalCount,
+        unreadCount: unreadCount
       };
     } catch (error) {
       console.error('Error in fetchEmails:', error);

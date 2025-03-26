@@ -32,6 +32,7 @@ export default function InboxPage() {
   const [page, setPage] = useState(1);
   const [itemsPerPage] = useState(10); // Reduced from 25 to 10
   const [totalEmails, setTotalEmails] = useState(0);
+  const [unreadEmails, setUnreadEmails] = useState(0);
   const [pageTokens, setPageTokens] = useState<string[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   
@@ -63,11 +64,15 @@ export default function InboxPage() {
         limit: itemsPerPage
       });
       
-      console.log(`Inbox result: totalCount=${result.resultSizeEstimate}, emails=${result.emails?.length}`, result);
+      console.log(`Inbox result: totalCount=${result.resultSizeEstimate}, unreadCount=${result.unreadCount}, emails=${result.emails?.length}`, result);
       
-      // Always update total count regardless of emails returned
+      // Always update counts regardless of emails returned
       if (result.resultSizeEstimate > 0) {
         setTotalEmails(result.resultSizeEstimate);
+      }
+      
+      if (result.unreadCount !== undefined) {
+        setUnreadEmails(result.unreadCount);
       }
       
       if (result.emails?.length) {
@@ -179,7 +184,7 @@ export default function InboxPage() {
                 Inbox
                 {!countLoading ? (
                   <span className="text-sm font-normal text-gray-500 ml-2">
-                    ({totalEmails.toLocaleString()} total)
+                    ({totalEmails.toLocaleString()} total, {unreadEmails.toLocaleString()} unread)
                   </span>
                 ) : (
                   <span className="text-sm font-normal text-gray-400 ml-2">

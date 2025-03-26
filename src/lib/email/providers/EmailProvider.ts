@@ -49,6 +49,7 @@ export interface FetchEmailsResult {
   emails: Email[];
   nextPageToken?: string;
   resultSizeEstimate: number;
+  unreadCount?: number;
 }
 
 export interface EmailProvider {
