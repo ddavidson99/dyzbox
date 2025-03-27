@@ -1,5 +1,122 @@
 # DyzBox Project Rules
 
+## Design Patterns
+
+1. **UI Components**
+   - Use Phosphor icons consistently throughout the application
+   - Apply light gray backgrounds for hover/active states
+   - Use blue only as narrow accents, not as full backgrounds
+   - Maintain consistent font sizes: text-sm for sidebar, text-base for content
+   - Use Tailwind's typography plugin for rich text content
+
+2. **React Patterns**
+   - Prefer functional components with hooks
+   - Use custom hooks for shared logic
+   - Apply useCallback for event handlers
+   - Use state management patterns that prevent duplicate operations
+   - Apply Suspense boundaries around components using useSearchParams()
+
+3. **Error Handling**
+   - Return structured response objects with success/error fields
+   - Provide toast notifications for user feedback
+   - Use try/catch in all server actions
+   - Include error logging for debugging
+   - Always provide fallback UI states for errors
+
+4. **API Integration**
+   - Use server actions for external API calls
+   - Apply appropriate rate limiting and backoff strategies
+   - Process API responses before sending to components
+   - Handle empty or malformed responses gracefully
+   - Use pagination tokens for large data sets
+
+## Coding Style
+
+1. **TypeScript Usage**
+   - Use strict typing for all components and functions
+   - Create interfaces for complex data structures
+   - Apply proper type guards for conditional logic
+   - Export types/interfaces when used across files
+   - Use explicit return types for functions
+
+2. **Component Structure**
+   - Group related state variables together
+   - Place helper functions before the main return statement
+   - Use useCallback for event handlers passed to children
+   - Extract complex logic to custom hooks
+   - Keep components focused on a single responsibility
+
+3. **CSS/Tailwind Usage**
+   - Use Tailwind utility classes directly in JSX
+   - Group related classes (layout, spacing, color, etc.)
+   - Apply responsive variants consistently
+   - Use consistent color palette from tailwind.config.ts
+   - Extract common class combinations to reusable variables
+
+## Project Preferences
+
+1. **File Organization**
+   - Place components in feature-based directories
+   - Group related components together
+   - Keep UI components in `ui` directory
+   - Store email-related components in `email` directory
+   - Maintain server actions in `app/actions` directory
+
+2. **State Management**
+   - Use React Context for global state (animations, theme)
+   - Keep component state local when possible
+   - Use server actions for API-related operations
+   - Apply optimistic updates for better UX
+   - Implement proper loading states for async operations
+
+3. **Navigation Patterns**
+   - Use Next.js App Router for routing
+   - Implement proper client-side navigation
+   - Provide loading states during navigation
+   - Use dynamic routes for email detail views
+   - Apply appropriate session checks for protected routes
+
+## Troubleshooting Patterns
+
+1. **Common Issues**
+   - Next.js 15 build issues often related to missing Suspense boundaries
+   - React 19 compatibility issues with legacy components using findDOMNode
+   - Gmail API rate limits require proper handling (429 responses)
+   - Authentication issues often due to incorrect/expired tokens
+   - Browser router issues need useSearchParams in Suspense boundaries
+
+2. **Performance Considerations**
+   - Batch API requests when possible
+   - Implement proper pagination for large data sets
+   - Apply debounce for frequent user actions
+   - Use memoization for expensive calculations
+   - Avoid unnecessary re-renders with useCallback/useMemo
+
+3. **Gmail API Specifics**
+   - Ensure proper scopes for OAuth authentication
+   - Use labels.get for accurate message counts
+   - Implement proper error handling for rate limits
+   - Use base64url encoding for email content
+   - Format email headers correctly for the API
+
+## Testing and QA
+
+1. **Manual Testing Focus**
+   - Test all email operations with different content types
+   - Verify draft saving behavior with various content states
+   - Check UI consistency across different screen sizes
+   - Test authentication flow from sign-in to API operations
+   - Verify proper handling of API errors
+
+## Developer Workflow
+
+1. **Git Practices**
+   - Use conventional commit messages (feat:, fix:, etc.)
+   - Include descriptive messages summarizing changes
+   - Keep related changes in single commits
+   - Push to main branch after verifying functionality
+   - Address linting issues before committing
+
 ## Project Intelligence
 
 ### Core Project Knowledge
