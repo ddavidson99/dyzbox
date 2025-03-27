@@ -37,33 +37,22 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
   onCancel,
   onSend
 }) => {
-  const [toRecipients, setToRecipients] = useState<EmailAddress[]>([]);
+  const router = useRouter();
+  const [toRecipients, setToRecipients] = useState<EmailAddress[]>(
+    initialTo ? [{ email: initialTo }] : []
+  );
   const [ccRecipients, setCcRecipients] = useState<EmailAddress[]>([]);
   const [bccRecipients, setBccRecipients] = useState<EmailAddress[]>([]);
   const [subject, setSubject] = useState(initialSubject);
   const [showCcBcc, setShowCcBcc] = useState(false);
   const [sending, setSending] = useState(false);
-  
   const editorRef = useRef<TipTapEditorRef>(null);
-  const router = useRouter();
   
   useEffect(() => {
-    // Parse initial recipients
-    if (initialTo && !isReply) {
-      const parsed = parseEmailString(initialTo);
-      setToRecipients(parsed);
-    }
-    
-    // Set initial body for reply
     if (initialBody && editorRef.current) {
-      setTimeout(() => {
-        if (editorRef.current) {
-          editorRef.current.setContent(initialBody);
-          editorRef.current.focus();
-        }
-      }, 100);
+      editorRef.current.setContent(initialBody);
     }
-  }, [initialTo, initialBody, isReply]);
+  }, [initialBody]);
   
   const parseEmailString = (emailStr: string): EmailAddress[] => {
     if (!emailStr.trim()) return [];
@@ -156,13 +145,45 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
   };
   
   const handleCancel = () => {
-    // Confirm before discarding
-    if (subject.trim() || toRecipients.length > 0 || ccRecipients.length > 0 || bccRecipients.length > 0 || (editorRef.current?.getContent() || '').length > 0) {
-      const confirmDiscard = window.confirm('Discard this email?');
-      if (!confirmDiscard) return;
+    // Check if the email has any content
+    const hasToRecipients = toRecipients.length > 0;
+    const hasCcRecipients = ccRecipients.length > 0;
+    const hasBccRecipients = bccRecipients.length > 0;
+    const hasSubject = subject.trim().length > 0;
+    const hasBody = (editorRef.current?.getContent() || '').length > 0;
+    
+    const isEmpty = !hasToRecipients && !hasCcRecipients && !hasBccRecipients && !hasSubject && !hasBody;
+    
+    if (isEmpty) {
+      // If email is empty, just close it without confirmation or saving
+      onCancel?.();
+      return;
     }
     
-    onCancel?.();
+    // Email has content, save as draft
+    const saveDraft = async () => {
+      try {
+        // Here you would normally save the draft to your backend
+        // For now, we'll just simulate it with a toast message
+        
+        // In a real implementation, you would add API call here:
+        // await saveDraftEmail({
+        //   to: toRecipients,
+        //   cc: ccRecipients.length > 0 ? ccRecipients : undefined,
+        //   bcc: bccRecipients.length > 0 ? bccRecipients : undefined,
+        //   subject,
+        //   body: editorRef.current?.getContent() || ''
+        // });
+        
+        toast.success('Draft saved');
+        onCancel?.();
+      } catch (error) {
+        console.error('Error saving draft:', error);
+        toast.error('Could not save draft');
+      }
+    };
+    
+    saveDraft();
   };
   
   const handleDelete = () => {
