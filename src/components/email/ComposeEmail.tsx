@@ -13,7 +13,7 @@ import {
   Trash
 } from '@phosphor-icons/react';
 import { EmailAddress } from '@/lib/email/providers/EmailProvider';
-import { sendEmail, replyToEmail } from '@/app/actions/email';
+import { sendEmail, replyToEmail, saveDraft } from '@/app/actions/email';
 import IconButton from '../ui/IconButton';
 import RecipientInput from './RecipientInput';
 import TipTapEditor, { TipTapEditorRef } from './TipTapEditor';
@@ -144,7 +144,7 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
     }
   };
   
-  const handleCancel = () => {
+  const handleCancel = async () => {
     // Check if the email has any content
     const hasToRecipients = toRecipients.length > 0;
     const hasCcRecipients = ccRecipients.length > 0;
@@ -161,29 +161,35 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
     }
     
     // Email has content, save as draft
-    const saveDraft = async () => {
-      try {
-        // Here you would normally save the draft to your backend
-        // For now, we'll just simulate it with a toast message
-        
-        // In a real implementation, you would add API call here:
-        // await saveDraftEmail({
-        //   to: toRecipients,
-        //   cc: ccRecipients.length > 0 ? ccRecipients : undefined,
-        //   bcc: bccRecipients.length > 0 ? bccRecipients : undefined,
-        //   subject,
-        //   body: editorRef.current?.getContent() || ''
-        // });
-        
+    try {
+      // Show loading toast
+      const loadingToastId = toast.loading('Saving draft...');
+      
+      // Get email content
+      const emailContent = editorRef.current?.getContent() || '';
+      
+      // Call the saveDraft server action
+      const result = await saveDraft({
+        to: toRecipients,
+        cc: ccRecipients.length > 0 ? ccRecipients : undefined,
+        bcc: bccRecipients.length > 0 ? bccRecipients : undefined,
+        subject,
+        body: formatEmailBody(emailContent)
+      });
+      
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+      
+      if (result.success) {
         toast.success('Draft saved');
         onCancel?.();
-      } catch (error) {
-        console.error('Error saving draft:', error);
-        toast.error('Could not save draft');
+      } else {
+        toast.error(result.error || 'Could not save draft');
       }
-    };
-    
-    saveDraft();
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      toast.error('Could not save draft');
+    }
   };
   
   const handleDelete = () => {

@@ -1,9 +1,18 @@
 'use server';
 
 import { auth } from '@/app/auth';
+import type { EmailAddress } from '@/lib/email/providers/EmailProvider';
 import { GmailProvider } from '@/lib/email/providers/GmailProvider';
 import { EmailService } from '@/lib/email/emailService';
 import { SendEmailOptions } from '@/lib/email/providers/EmailProvider';
+
+export interface SendEmailParams {
+  to: EmailAddress[];
+  cc?: EmailAddress[];
+  bcc?: EmailAddress[];
+  subject: string;
+  body: string;
+}
 
 export async function markAsRead(emailId: string) {
   try {
@@ -333,5 +342,83 @@ export async function archiveEmail(emailId: string) {
   } catch (error) {
     console.error('Error archiving email:', error);
     return { success: false, error: 'Failed to archive email' };
+  }
+}
+
+/**
+ * Save an email as draft
+ */
+export async function saveDraft(params: SendEmailParams): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await auth();
+    
+    if (!session || !session.accessToken) {
+      return { success: false, error: 'Authentication required' };
+    }
+    
+    const provider = new GmailProvider(session.accessToken as string);
+    
+    try {
+      // Construct email from parameters
+      const { to, cc, bcc, subject, body } = params;
+      
+      // Format recipients as string
+      const formatRecipients = (recipients: EmailAddress[] | undefined): string => {
+        if (!recipients || recipients.length === 0) return '';
+        return recipients.map(r => r.name ? `${r.name} <${r.email}>` : r.email).join(', ');
+      };
+      
+      // Construct raw email content
+      let emailContent = '';
+      emailContent += `To: ${formatRecipients(to)}\r\n`;
+      if (cc && cc.length > 0) emailContent += `Cc: ${formatRecipients(cc)}\r\n`;
+      if (bcc && bcc.length > 0) emailContent += `Bcc: ${formatRecipients(bcc)}\r\n`;
+      emailContent += `Subject: ${subject}\r\n`;
+      emailContent += 'Content-Type: text/html; charset=UTF-8\r\n\r\n';
+      emailContent += body;
+      
+      // Convert to base64url
+      const encodedEmail = Buffer.from(emailContent).toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+      
+      // Call Gmail API to create draft
+      const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/drafts', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: {
+            raw: encodedEmail
+          }
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Error saving draft:', errorData);
+        return { success: false, error: errorData.error?.message || 'Failed to save draft' };
+      }
+      
+      const data = await response.json();
+      console.log('Draft saved successfully:', data.id);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error in saveDraft:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'An error occurred while saving draft'
+      };
+    }
+  } catch (error) {
+    console.error('Error in saveDraft:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'An error occurred while saving draft'
+    };
   }
 } 
