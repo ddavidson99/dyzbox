@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import typography from '@tailwindcss/typography';
 
 const config: Config = {
   content: [
@@ -63,9 +64,35 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-sans)"],
       },
+      typography: {
+        DEFAULT: {
+          css: {
+            maxWidth: 'none',
+            color: '#212121',
+            a: {
+              color: '#0066CC',
+              textDecoration: 'none',
+              '&:hover': {
+                textDecoration: 'underline',
+              },
+            },
+            p: {
+              marginTop: '0.75em',
+              marginBottom: '0.75em',
+            },
+            code: {
+              borderRadius: '0.25rem',
+              padding: '0.15rem 0.3rem',
+              borderWidth: '1px',
+              borderColor: '#E5E7EB',
+              backgroundColor: '#F3F4F6',
+            },
+          },
+        },
+      },
     },
   },
-  plugins: [],
+  plugins: [typography],
 };
 
 export default config; 

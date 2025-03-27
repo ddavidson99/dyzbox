@@ -14,7 +14,8 @@ import {
   Plus, 
   Spinner, 
   PlusCircle, 
-  Folder 
+  Folder, 
+  PencilSimple 
 } from "@phosphor-icons/react";
 import { getLabels, createLabel, getUnreadCounts } from "@/app/actions/email";
 import { toast } from "react-hot-toast";
@@ -39,9 +40,19 @@ const navItems = [
     icon: EnvelopeSimple,
   },
   {
+    name: "Draft",
+    href: "/label/DRAFT",
+    icon: PencilSimple,
+  },
+  {
     name: "Sent",
     href: "/sent",
     icon: PaperPlaneTilt,
+  },
+  {
+    name: "Spam",
+    href: "/label/SPAM",
+    icon: Tag,
   },
   {
     name: "Archive",

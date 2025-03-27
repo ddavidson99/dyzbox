@@ -15,6 +15,7 @@ The DyzBox project is currently in the initial implementation phase. We've estab
 9. **UI Consistency**: Ensuring consistent UI behavior across different views (inbox, labels).
 10. **Notification Features**: Implementing visual indicators for unread messages and attention-grabbing animations.
 11. **Multi-Provider Strategy**: Designing the foundation for supporting both Gmail and Outlook while maintaining a unified user identity.
+12. **Large Inbox Handling**: Improving Gmail API integration to properly handle large email inboxes with pagination and accurate counts.
 
 ## Recent Decisions
 
@@ -41,6 +42,9 @@ The DyzBox project is currently in the initial implementation phase. We've estab
 21. **UI Consistency**: Created consistent email viewing experience across inbox and label pages.
 22. **Visual Notification System**: Implemented subtle animation for categories with unread messages, making only the category icons "jiggle" to draw user attention while maintaining text readability.
 23. **Authentication Strategy**: Decided on provider-based authentication (OAuth) with account linking for multiple email providers, using a single user identity in our system.
+24. **Gmail Provider Optimization**: Improved the GmailProvider class to handle large inboxes with better batch processing, rate limiting, and pagination token support.
+25. **Email Statistics Approach**: Implemented direct label statistics from Gmail API to get accurate inbox and unread counts.
+26. **Compose Email Enhancement Plan**: Designed a plan to enhance the email compose functionality with Quill.js for rich text editing and an icon-based UI that aligns with our minimal design philosophy. Keyboard shortcuts will be implemented in a later phase after core functionality is complete.
 
 ## Current Challenges
 
@@ -61,6 +65,9 @@ The DyzBox project is currently in the initial implementation phase. We've estab
 15. **Mobile Responsiveness**: Adapting the resizable two-pane layout for mobile devices.
 16. **Multi-Provider Authentication**: Designing a system that supports both Gmail and Outlook authentication while maintaining a unified user experience.
 17. **User Identity Management**: Implementing a system that links multiple provider accounts to a single DyzBox user identity.
+18. **Rate Limit Handling**: Properly handling Gmail API rate limits when fetching emails from large inboxes.
+19. **Inbox Count Accuracy**: Getting accurate total and unread counts for large Gmail inboxes (20,000+ emails).
+20. **Pagination Implementation**: Creating efficient pagination that respects API limits while providing a smooth user experience.
 
 ## Implementation Strategy
 
@@ -78,6 +85,7 @@ The development approach follows a phased implementation plan:
 - Ensuring consistent UI behavior across different views
 - Implementing notification features to draw attention to unread messages
 - Creating the database schema for user identity and provider linking
+- Optimizing email fetching for large inboxes with proper pagination and count statistics
 
 ### Next Phase: Enhanced AI Features & Multi-Provider Support (Q2 2025)
 - Adding AI-powered email categorization and summary capabilities
@@ -101,6 +109,7 @@ The development approach follows a phased implementation plan:
 9. **Notification Features**: Expand the animation system to other notifications beyond unread count
 10. **User Identity Schema**: Implement the database schema for user identity and provider linking
 11. **Account Linking UI**: Design the interface for users to link multiple email accounts
+12. **Enhanced Compose UI**: Implement the new compose email interface with icon-based actions and Quill.js integration for rich text editing
 
 ## Technical Insights
 
@@ -181,6 +190,27 @@ The development approach follows a phased implementation plan:
     - Support for changing primary provider while maintaining single user account
     - Clear separation between authentication identity and email provider access
 
+13. **Gmail API Pagination Implementation**: We've addressed the challenges with fetching emails from large inboxes:
+   - Implemented pagination token support for fetching emails in manageable batches
+   - Created a batch processing system with appropriate delays to respect rate limits
+   - Added configurable batch size and delay parameters for optimization
+   - Implemented error handling for failed batches that allows continuing with remaining messages
+   - Created efficient state management for tracking pagination position
+
+14. **Email Statistics Implementation**: We've improved the approach for getting accurate email counts:
+   - Used Gmail API's labels.get endpoint to get accurate statistics for inbox
+   - Implemented direct counting methods using specific query parameters
+   - Added fallback mechanisms when primary count methods are inaccurate
+   - Created UI components to display both total and unread email counts
+   - Added loading states specifically for count operations
+
+15. **Rate Limit Handling**: We've implemented strategies for dealing with Gmail API rate limits:
+   - Added exponential backoff for retrying rate-limited requests
+   - Implemented batch processing with configurable delays between requests
+   - Created queuing system for large operations to prevent simultaneous requests
+   - Added comprehensive error handling to recover from rate limit errors
+   - Improved UI feedback during rate-limited operations
+
 ## Open Questions
 
 1. How can we optimize the Gmail API usage to handle large email volumes efficiently?
@@ -198,6 +228,9 @@ The development approach follows a phased implementation plan:
 13. How can we expand the animation system to include other types of notifications?
 14. What's the most secure way to store and refresh OAuth tokens for multiple providers?
 15. How should we handle the situation where a user's provider OAuth access is revoked?
+16. What's the most reliable approach to get accurate email counts from the Gmail API for very large inboxes?
+17. How can we implement a caching layer to reduce dependency on Gmail API quota for common operations?
+18. What's the optimal pattern for implementing infinite scroll with Gmail's pagination tokens?
 
 ## Current Team Focus
 
@@ -210,6 +243,7 @@ The development approach follows a phased implementation plan:
 - **DevOps**: Setting up the infrastructure for Next.js and Python microservices
 - **QA**: Developing testing strategies for error handling and resilience
 - **Architecture Team**: Designing the multi-provider authentication and user identity system
+- **Performance Team**: Optimizing Gmail API usage for large inboxes and implementing efficient pagination
 
 ## Reference Materials
 
