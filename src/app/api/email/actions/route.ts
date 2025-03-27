@@ -1,101 +1,135 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { GmailProvider } from "@/lib/email/providers/GmailProvider";
-import { EmailService } from "@/lib/email/emailService";
+import { EmailAddress } from "@/lib/email/providers/EmailProvider";
+import { getServerAuthSession } from "@/lib/getServerAuthSession";
 
-// Use a try/catch wrapper for auth validation
-async function validateAuth() {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.accessToken) {
-      return null;
-    }
-    return session;
-  } catch (error) {
-    console.error('Auth validation error:', error);
-    return null;
-  }
-}
-
+// API route for email actions
 export async function POST(request: NextRequest) {
+  const session = await getServerAuthSession();
+  
+  if (!session || !session.accessToken) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+  
   try {
-    // Check authentication
-    const session = await validateAuth();
-    
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
-    
-    // Parse request
     const body = await request.json();
-    const { action, emailId, labelId } = body;
+    const { action, emailId, data } = body;
     
     if (!action || !emailId) {
-      return NextResponse.json(
-        { error: 'Missing required parameters' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'Missing required parameters' }, { status: 400 });
     }
-    
-    // Initialize provider and service
-    const provider = new GmailProvider(session.accessToken as string);
-    const emailService = new EmailService(provider);
-    
-    // Handle different actions
+
+    // These actions require a server-side API call
+    // For other actions like mark as read, archive, etc. we use server actions
     switch (action) {
-      case 'markAsRead':
-        await emailService.markAsRead(emailId);
-        break;
+      case 'delete': {
+        const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${emailId}/trash`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
         
-      case 'markAsUnread':
-        await emailService.markAsUnread(emailId);
-        break;
-        
-      case 'trash':
-        await emailService.trashEmail(emailId);
-        break;
-        
-      case 'delete':
-        await emailService.deleteEmail(emailId);
-        break;
-        
-      case 'addLabel':
-        if (!labelId) {
-          return NextResponse.json(
-            { error: 'Label ID is required for this action' },
-            { status: 400 }
-          );
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error?.message || 'Failed to delete email');
         }
-        await emailService.addLabel(emailId, labelId);
-        break;
         
-      case 'removeLabel':
-        if (!labelId) {
-          return NextResponse.json(
-            { error: 'Label ID is required for this action' },
-            { status: 400 }
-          );
+        return NextResponse.json({ success: true });
+      }
+      
+      case 'reply': {
+        const { to, cc, bcc, subject, body } = data || {};
+        
+        if (!body) {
+          return NextResponse.json({ success: false, error: 'Missing email body' }, { status: 400 });
         }
-        await emailService.removeLabel(emailId, labelId);
-        break;
         
+        // Get the original message to get thread information
+        const msgResponse = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${emailId}`, {
+          headers: {
+            'Authorization': `Bearer ${session.accessToken}`
+          }
+        });
+        
+        if (!msgResponse.ok) {
+          const errorData = await msgResponse.json();
+          throw new Error(errorData.error?.message || 'Failed to get original message');
+        }
+        
+        const message = await msgResponse.json();
+        const threadId = message.threadId;
+        
+        // Format recipients
+        const formatRecipients = (recipients: EmailAddress[] | undefined) => {
+          if (!recipients || recipients.length === 0) return '';
+          return recipients.map(r => {
+            if (r.name) {
+              return `${r.name} <${r.email}>`;
+            }
+            return r.email;
+          }).join(', ');
+        };
+        
+        // Get email headers
+        const headers = message.payload.headers;
+        const getHeader = (name: string) => {
+          const header = headers.find((h: { name: string; value: string }) => h.name.toLowerCase() === name.toLowerCase());
+          return header ? header.value : '';
+        };
+        
+        const originalFrom = getHeader('from');
+        const originalSubject = getHeader('subject');
+        
+        const replySubject = subject || (originalSubject.startsWith('Re:') ? originalSubject : `Re: ${originalSubject}`);
+        
+        // Create email content
+        let emailContent = '';
+        emailContent += `To: ${to || originalFrom}\r\n`;
+        if (cc && cc.length > 0) emailContent += `Cc: ${formatRecipients(cc)}\r\n`;
+        if (bcc && bcc.length > 0) emailContent += `Bcc: ${formatRecipients(bcc)}\r\n`;
+        emailContent += `Subject: ${replySubject}\r\n`;
+        emailContent += `In-Reply-To: ${message.id}\r\n`;
+        emailContent += `References: ${message.id}\r\n`;
+        emailContent += `Thread-Id: ${threadId}\r\n`;
+        emailContent += 'Content-Type: text/html; charset=UTF-8\r\n\r\n';
+        emailContent += body;
+        
+        // Encode as base64url
+        const encodedEmail = btoa(emailContent)
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+        
+        // Send reply
+        const sendResponse = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            raw: encodedEmail,
+            threadId
+          })
+        });
+        
+        if (!sendResponse.ok) {
+          const errorData = await sendResponse.json();
+          throw new Error(errorData.error?.message || 'Failed to send reply');
+        }
+        
+        return NextResponse.json({ success: true });
+      }
+      
       default:
-        return NextResponse.json(
-          { error: 'Invalid action' },
-          { status: 400 }
-        );
+        return NextResponse.json({ success: false, error: 'Unknown action' }, { status: 400 });
     }
-    
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error('Error performing email action:', error);
-    return NextResponse.json(
-      { error: error.message || 'An error occurred' },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error('Email action error:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'An error occurred' 
+    }, { status: 500 });
   }
 } 
