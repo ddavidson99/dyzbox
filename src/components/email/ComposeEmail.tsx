@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, FormEvent } from 'react';
+import React, { useState, useRef, useEffect, FormEvent, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { 
@@ -46,6 +46,7 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
   const [subject, setSubject] = useState(initialSubject);
   const [showCcBcc, setShowCcBcc] = useState(false);
   const [sending, setSending] = useState(false);
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
   const editorRef = useRef<TipTapEditorRef>(null);
   
   useEffect(() => {
@@ -89,13 +90,19 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
   const handleSend = async (e?: FormEvent) => {
     if (e) e.preventDefault();
     
+    // Prevent multiple submissions
+    if (isProcessingAction || sending) return;
+    setIsProcessingAction(true);
+    
     if (!isReply && toRecipients.length === 0) {
       toast.error('Please add at least one recipient');
+      setIsProcessingAction(false);
       return;
     }
     
     if (!subject.trim()) {
       toast.error('Please enter a subject');
+      setIsProcessingAction(false);
       return;
     }
     
@@ -118,6 +125,7 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
           onSend?.();
         } else {
           toast.error(result.error || 'Failed to send reply');
+          setIsProcessingAction(false);
         }
       } else {
         // Regular email sending
@@ -134,69 +142,101 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
           onSend?.();
         } else {
           toast.error(result.error || 'Failed to send email');
+          setIsProcessingAction(false);
         }
       }
     } catch (error) {
       console.error('Error sending email:', error);
       toast.error('An error occurred while sending the email');
+      setIsProcessingAction(false);
     } finally {
       setSending(false);
     }
   };
   
-  const handleCancel = async () => {
-    // Check if the email has any content
-    const hasToRecipients = toRecipients.length > 0;
-    const hasCcRecipients = ccRecipients.length > 0;
-    const hasBccRecipients = bccRecipients.length > 0;
-    const hasSubject = subject.trim().length > 0;
-    const hasBody = (editorRef.current?.getContent() || '').length > 0;
+  const handleCancel = useCallback(async () => {
+    // Prevent multiple actions
+    if (isProcessingAction) return;
+    setIsProcessingAction(true);
     
-    const isEmpty = !hasToRecipients && !hasCcRecipients && !hasBccRecipients && !hasSubject && !hasBody;
-    
-    if (isEmpty) {
-      // If email is empty, just close it without confirmation or saving
-      onCancel?.();
-      return;
-    }
-    
-    // Email has content, save as draft
     try {
-      // Show loading toast
-      const loadingToastId = toast.loading('Saving draft...');
+      // Check if the email has any content
+      const hasToRecipients = toRecipients.length > 0;
+      const hasCcRecipients = ccRecipients.length > 0;
+      const hasBccRecipients = bccRecipients.length > 0;
+      const hasSubject = subject.trim().length > 0;
+      const hasBody = (editorRef.current?.getContent() || '').length > 0;
       
-      // Get email content
-      const emailContent = editorRef.current?.getContent() || '';
+      const isEmpty = !hasToRecipients && !hasCcRecipients && !hasBccRecipients && !hasSubject && !hasBody;
       
-      // Call the saveDraft server action
-      const result = await saveDraft({
-        to: toRecipients,
-        cc: ccRecipients.length > 0 ? ccRecipients : undefined,
-        bcc: bccRecipients.length > 0 ? bccRecipients : undefined,
-        subject,
-        body: formatEmailBody(emailContent)
-      });
-      
-      // Dismiss loading toast
-      toast.dismiss(loadingToastId);
-      
-      if (result.success) {
-        toast.success('Draft saved');
+      if (isEmpty) {
+        // If email is empty, just close it without saving
         onCancel?.();
-      } else {
-        toast.error(result.error || 'Could not save draft');
+        return;
+      }
+      
+      // Email has content, save as draft
+      try {
+        // Show loading toast
+        const loadingToastId = toast.loading('Saving draft...');
+        
+        // Get email content
+        const emailContent = editorRef.current?.getContent() || '';
+        
+        // Call the saveDraft server action
+        const result = await saveDraft({
+          to: toRecipients,
+          cc: ccRecipients.length > 0 ? ccRecipients : undefined,
+          bcc: bccRecipients.length > 0 ? bccRecipients : undefined,
+          subject,
+          body: formatEmailBody(emailContent)
+        });
+        
+        // Dismiss loading toast
+        toast.dismiss(loadingToastId);
+        
+        if (result.success) {
+          toast.success('Draft saved');
+          onCancel?.();
+        } else {
+          toast.error(result.error || 'Could not save draft');
+          setIsProcessingAction(false);
+        }
+      } catch (error) {
+        console.error('Error saving draft:', error);
+        toast.error('Could not save draft');
+        setIsProcessingAction(false);
       }
     } catch (error) {
-      console.error('Error saving draft:', error);
-      toast.error('Could not save draft');
+      console.error('Error handling cancel:', error);
+      setIsProcessingAction(false);
     }
-  };
-  
-  const handleDelete = () => {
-    const confirmDelete = window.confirm('Delete this draft?');
-    if (!confirmDelete) return;
+  }, [toRecipients, ccRecipients, bccRecipients, subject, onCancel, isProcessingAction, formatEmailBody]);
+
+  // Disable browser's "Are you sure you want to leave" prompt
+  useEffect(() => {
+    // Only add the event listener if we're running in a browser
+    if (typeof window !== 'undefined') {
+      window.onbeforeunload = null;
+    }
     
-    // If we had draft saving functionality, we'd delete it from storage here
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.onbeforeunload = null;
+      }
+    };
+  }, []);
+
+  const handleDelete = () => {
+    // Prevent multiple actions
+    if (isProcessingAction) return;
+    setIsProcessingAction(true);
+    
+    const confirmDelete = window.confirm('Delete this draft?');
+    if (!confirmDelete) {
+      setIsProcessingAction(false);
+      return;
+    }
     
     toast.success('Draft deleted');
     onCancel?.();
@@ -208,14 +248,14 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
       <div className="flex items-center justify-between bg-gray-50 px-4 py-2 border-b">
         <h2 className="text-lg font-medium">{isReply ? 'Reply to Email' : 'New Message'}</h2>
         <div className="flex items-center space-x-1">
-          <IconButton onClick={handleCancel} tooltip="Discard">
+          <IconButton onClick={handleCancel} tooltip="Close">
             <X size={18} weight="bold" />
           </IconButton>
         </div>
       </div>
       
       {/* Email form */}
-      <form className="flex flex-col" onSubmit={handleSend}>
+      <div className="flex flex-col">
         {/* Recipients */}
         {!isReply && (
           <div className="px-4 py-2 border-b">
@@ -300,11 +340,10 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
           <IconButton 
             variant="primary" 
             onClick={handleSend} 
-            disabled={sending}
+            disabled={sending || isProcessingAction}
             loading={sending}
             tooltip="Send"
             className="mr-2"
-            type="submit"
           >
             <PaperPlaneTilt size={18} weight="bold" />
           </IconButton>
@@ -315,7 +354,11 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
           
           <div className="flex-1"></div>
           
-          <IconButton tooltip="Delete draft" onClick={handleDelete}>
+          <IconButton 
+            tooltip="Delete draft" 
+            onClick={handleDelete}
+            disabled={isProcessingAction}
+          >
             <Trash size={18} weight="bold" />
           </IconButton>
         </div>
@@ -330,7 +373,7 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
             readOnly={sending}
           />
         </div>
-      </form>
+      </div>
     </div>
   );
 };
