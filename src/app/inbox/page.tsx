@@ -259,6 +259,11 @@ export default function InboxPage() {
     // Handle page navigation
     const targetIndex = pageNum - 1;
     
+    // Calculate the page range based on the selected page number
+    const start = (pageNum - 1) * itemsPerPage + 1;
+    const end = Math.min(start + itemsPerPage - 1, emailCounts.totalEmails);
+    setCurrentPageRange({ start, end });
+    
     if (targetIndex < currentPageIndex) {
       // Going backward
       const targetToken = targetIndex > 0 ? pageTokenStack[targetIndex - 1] : undefined;
