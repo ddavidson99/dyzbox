@@ -254,6 +254,9 @@ export default function TrashPage() {
     // Handle page navigation
     const targetIndex = pageNum - 1;
     
+    // IMPORTANT: Always update the currentPageIndex when jumping to a page
+    setCurrentPageIndex(targetIndex);
+    
     // Calculate the page range based on the selected page number
     const start = (pageNum - 1) * itemsPerPage + 1;
     const end = Math.min(start + itemsPerPage - 1, emailCounts.totalEmails);
@@ -262,9 +265,6 @@ export default function TrashPage() {
     if (targetIndex < currentPageIndex) {
       // Going backward
       const targetToken = targetIndex > 0 ? pageTokenStack[targetIndex - 1] : undefined;
-      
-      // Set current page index before loading emails
-      setCurrentPageIndex(targetIndex);
       
       loadEmails(targetToken, true);
     } else if (targetIndex > currentPageIndex) {
