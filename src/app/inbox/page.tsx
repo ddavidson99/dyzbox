@@ -228,6 +228,15 @@ export default function InboxPage() {
 
   const handleNextPage = () => {
     if (hasNextPage) {
+      // Update currentPage before loading emails
+      setCurrentPage(currentPage + 1);
+      
+      // Update the page range for immediate UI feedback
+      const nextPageIndex = currentPageIndex + 1;
+      const start = (nextPageIndex * itemsPerPage) + 1;
+      const end = Math.min(start + itemsPerPage - 1, emailCounts.totalEmails);
+      setCurrentPageRange({ start, end });
+      
       // Don't update currentPageIndex here - it's handled in loadEmails
       loadEmails(pageToken);
     }
