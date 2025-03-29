@@ -250,31 +250,37 @@ export default function InboxPage() {
   }, []);
 
   const handlePageSelect = (pageNum: number) => {
-    if (pageNum === currentPageIndex + 1) {
+    // Store the old index for comparison
+    const oldPageIndex = currentPageIndex;
+    const targetIndex = pageNum - 1;
+
+    if (targetIndex === oldPageIndex) {
       // Already on this page
       setShowPageDropdown(false);
       return;
     }
-
-    // Handle page navigation
-    const targetIndex = pageNum - 1;
     
-    // IMPORTANT: Always update the currentPageIndex when jumping to a page
+    // First update the UI immediately
     setCurrentPageIndex(targetIndex);
     
-    // Calculate the page range based on the selected page number
+    // Force the page range to update based on selected page
     const start = (pageNum - 1) * itemsPerPage + 1;
     const end = Math.min(start + itemsPerPage - 1, emailCounts.totalEmails);
     setCurrentPageRange({ start, end });
     
-    if (targetIndex < currentPageIndex) {
+    // Then handle data fetching
+    if (targetIndex < oldPageIndex) {
       // Going backward
       const targetToken = targetIndex > 0 ? pageTokenStack[targetIndex - 1] : undefined;
       
+      // Update previous page availability
+      setHasPreviousPage(targetIndex > 0);
+      
+      // Load emails for this page
       loadEmails(targetToken, true);
-    } else if (targetIndex > currentPageIndex) {
-      // Can only go forward one page at a time due to token-based pagination
-      if (targetIndex === currentPageIndex + 1 && hasNextPage) {
+    } else if (targetIndex > oldPageIndex) {
+      // Going forward - can only go one page at a time due to token-based pagination
+      if (targetIndex === oldPageIndex + 1 && hasNextPage) {
         loadEmails(pageToken);
       }
     }
