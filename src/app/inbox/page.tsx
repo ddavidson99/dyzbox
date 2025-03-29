@@ -119,18 +119,26 @@ export default function InboxPage() {
         newPageIndex = currentPageIndex - 1;
         setPageToken(token);
         setCurrentPageIndex(newPageIndex);
+        
+        // Make sure currentPage reflects this change
+        setCurrentPage(newPageIndex + 1);
       } else if (result.nextPageToken) {
         // When going forward with a token, increment page index
         if (token) {
           setPageTokenStack(prev => [...prev.slice(0, currentPageIndex + 1), token]);
           newPageIndex = currentPageIndex + 1;
           setCurrentPageIndex(newPageIndex);
+          
+          // Make sure currentPage reflects this change
+          setCurrentPage(newPageIndex + 1);
         }
         setPageToken(result.nextPageToken);
       }
       
       // Update page range display (calculate based on page index)
-      updatePageRange(newPageIndex);
+      const start = (newPageIndex * itemsPerPage) + 1;
+      const end = Math.min(start + itemsPerPage - 1, emailCounts.totalEmails);
+      setCurrentPageRange({ start, end });
       
       // Set next/previous page availability
       setHasNextPage(!!result.nextPageToken);
