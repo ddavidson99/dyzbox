@@ -27,7 +27,6 @@ export default function TrashPage() {
   const [pageToken, setPageToken] = useState<string | undefined>();
   const [pageTokenStack, setPageTokenStack] = useState<string[]>([]);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [hasPreviousPage, setHasPreviousPage] = useState(false);
   const [showPageDropdown, setShowPageDropdown] = useState(false);
@@ -114,26 +113,18 @@ export default function TrashPage() {
         newPageIndex = currentPageIndex - 1;
         setPageToken(token);
         setCurrentPageIndex(newPageIndex);
-        
-        // Make sure currentPage reflects this change
-        setCurrentPage(newPageIndex + 1);
       } else if (result.nextPageToken) {
         // When going forward with a token, increment page index
         if (token) {
           setPageTokenStack(prev => [...prev.slice(0, currentPageIndex + 1), token]);
           newPageIndex = currentPageIndex + 1;
           setCurrentPageIndex(newPageIndex);
-          
-          // Make sure currentPage reflects this change
-          setCurrentPage(newPageIndex + 1);
         }
         setPageToken(result.nextPageToken);
       }
       
-      // Update page range display (calculate based on page index)
-      const start = (newPageIndex * itemsPerPage) + 1;
-      const end = Math.min(start + itemsPerPage - 1, emailCounts.totalEmails);
-      setCurrentPageRange({ start, end });
+      // Update page range display (calculate based on loaded emails)
+      updatePageRange(newPageIndex);
       
       // Set next/previous page availability
       setHasNextPage(!!result.nextPageToken);
@@ -231,15 +222,6 @@ export default function TrashPage() {
 
   const handleNextPage = () => {
     if (hasNextPage) {
-      // Update currentPage before loading emails
-      setCurrentPage(currentPage + 1);
-      
-      // Update the page range for immediate UI feedback
-      const nextPageIndex = currentPageIndex + 1;
-      const start = (nextPageIndex * itemsPerPage) + 1;
-      const end = Math.min(start + itemsPerPage - 1, emailCounts.totalEmails);
-      setCurrentPageRange({ start, end });
-      
       // Don't update currentPageIndex here - it's handled in loadEmails
       loadEmails(pageToken);
     }
@@ -263,7 +245,7 @@ export default function TrashPage() {
   }, []);
 
   const handlePageSelect = (pageNum: number) => {
-    if (pageNum === currentPage) {
+    if (pageNum === currentPageIndex + 1) {
       // Already on this page
       setShowPageDropdown(false);
       return;
@@ -272,41 +254,26 @@ export default function TrashPage() {
     // Handle page navigation
     const targetIndex = pageNum - 1;
     
-    // Explicitly update the current page number for display
-    setCurrentPage(pageNum);
-    
     if (targetIndex < currentPageIndex) {
       // Going backward
       const targetToken = targetIndex > 0 ? pageTokenStack[targetIndex - 1] : undefined;
       
-      // Important: Set current page index to target page index
+      // Set current page index before loading emails
       setCurrentPageIndex(targetIndex);
-      
-      // Update the page range for immediate UI feedback
-      const start = (targetIndex * itemsPerPage) + 1;
-      const end = Math.min(start + itemsPerPage - 1, emailCounts.totalEmails);
-      setCurrentPageRange({ start, end });
-      
-      // For page 1, explicitly set hasPreviousPage to false
-      if (targetIndex === 0) {
-        setHasPreviousPage(false);
-      }
       
       loadEmails(targetToken, true);
     } else if (targetIndex > currentPageIndex) {
       // Can only go forward one page at a time due to token-based pagination
       if (targetIndex === currentPageIndex + 1 && hasNextPage) {
-        // Update the page range for immediate UI feedback
-        const start = (targetIndex * itemsPerPage) + 1;
-        const end = Math.min(start + itemsPerPage - 1, emailCounts.totalEmails);
-        setCurrentPageRange({ start, end });
-        
         loadEmails(pageToken);
       }
     }
     
     setShowPageDropdown(false);
   };
+
+  // Get the current page number - derive directly from currentPageIndex
+  const currentPage = currentPageIndex + 1;
 
   // Total pages is an estimate since we don't know exact total without fetching all
   const estimatedTotalPages = Math.ceil(emailCounts.totalEmails / itemsPerPage);
