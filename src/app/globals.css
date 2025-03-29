@@ -34,3 +34,14 @@
   border-left: 3px solid #e5e7eb;
   color: #4b5563;
 }
+
+/* Cache indicator animation */
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.animate-fadeOut {
+  animation: fadeOut 2s ease-in-out forwards;
+}

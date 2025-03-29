@@ -874,3 +874,133 @@ Creates concise, useful summaries of email content.
 
 ### ReplyGenerator
 Creates context-aware reply suggestions that match user's tone and style.
+
+## Component Architecture
+
+### Email Compose and Management
+
+The email compose functionality uses a modular architecture:
+
+1. **ComposeEmail Component**: Manages the overall composition interface:
+   - Handles recipient input/parsing
+   - Manages subject and body state
+   - Coordinates with the editor component
+   - Handles draft saving and sending operations
+   - Processes responses from server actions
+
+2. **TipTap Editor Component**: Provides rich text editing capabilities:
+   - Implements TipTap editor with necessary extensions
+   - Offers formatting controls (bold, italic, underline, lists, etc.)
+   - Exposes methods for getting/setting content
+   - Maintains consistent styling with the application's design theme
+   - Replaces React Quill for better React 19 compatibility
+
+3. **RecipientInput Component**: Handles email recipient entry:
+   - Validates email addresses
+   - Manages recipient chips for To/Cc/Bcc fields
+   - Provides type-ahead suggestions
+   - Handles keyboard navigation
+
+4. **Draft Management System**: Handles saving and managing drafts:
+   - Automatically determines whether to save or discard based on content
+   - Uses Gmail API for storing drafts in the user's Gmail account
+   - Provides user feedback through toast notifications
+   - Manages browser navigation behavior to prevent unwanted confirmation dialogs
+   - Implements state management to prevent duplicate operations
+
+## Data Flow Patterns
+
+### Email Composition and Sending
+
+The email composition and sending flow follows these steps:
+
+1. User initiates email composition through Compose button or Reply action
+2. ComposeEmail component renders with empty fields or prefilled data for replies
+3. As user enters information, state is maintained in the ComposeEmail component
+4. When ready to send:
+   - Data is validated (recipients, subject)
+   - Email content is retrieved from the TipTap editor
+   - Server action is called to send the email through the Gmail API
+   - User receives feedback via toast notifications
+   - On success, user is redirected to the appropriate view
+5. When closing without sending:
+   - Component checks if the email has any content
+   - If empty, it simply closes without saving
+   - If there's content, it calls the saveDraft server action
+   - Draft is saved to Gmail and user is notified
+   - Component exits and returns to previous view
+
+### Draft Saving Process
+
+The draft saving process follows these steps:
+
+1. User closes the compose view by clicking X
+2. ComposeEmail checks for any content in recipients, subject, or body fields
+3. If completely empty, it simply closes without saving
+4. If any content exists:
+   - Email data is prepared in correct format
+   - saveDraft server action is called
+   - Draft is created in Gmail through the Gmail API
+   - User receives a "Draft saved" notification
+   - Component redirects back to previous view
+
+## Service Communication
+
+### Gmail API Integration
+
+The application communicates with Gmail API using these patterns:
+
+1. **Authentication**: OAuth 2.0 authentication using NextAuth with proper scopes:
+   - `https://www.googleapis.com/auth/gmail.modify`
+   - `https://www.googleapis.com/auth/gmail.compose`
+   - `https://www.googleapis.com/auth/gmail.send`
+   - `https://www.googleapis.com/auth/gmail.labels`
+
+2. **Email Operations**:
+   - Fetching emails: Uses Gmail API's `users.messages.list` and `users.messages.get`
+   - Sending emails: Uses Gmail API's `users.messages.send`
+   - Managing labels: Uses Gmail API's `users.labels` endpoints
+   - Getting counts: Uses Gmail API's `users.labels.get`
+   - Saving drafts: Uses Gmail API's `users.drafts.create`
+
+3. **Data Transformation**:
+   - Email content is formatted as required by Gmail API
+   - Base64url encoding is used for email content
+   - Proper headers are included for email formatting
+
+4. **Error Handling**:
+   - API errors are caught and presented to user
+   - Rate limiting is handled with exponential backoff
+   - Network errors result in retry attempts
+   - User feedback is provided for all operations
+
+## Email Threading Implementation
+
+Email threading will be a key feature in DyzBox's organization capabilities, designed to reduce inbox clutter and improve conversation context:
+
+### Thread Identification
+- Gmail Thread IDs will be used as the primary grouping mechanism for Gmail accounts
+- For other providers, we'll implement custom threading using subject line analysis, In-Reply-To and References headers
+- Each thread will have a unique identifier in our system, linking related messages across providers
+
+### UI Representation
+- Threads will be displayed in a chronological view with the most recent message visible in the thread preview
+- Expanding a thread will show all related messages in time order with proper indentation for reply depth
+- Visual indicators will show thread length and participants at a glance
+- Unread messages within threads will be highlighted with the same styling as individual unread messages
+
+### Threading Logic
+- Messages will be grouped based on conversation flow rather than just subject line matching
+- Messages with the same thread ID will be automatically grouped
+- Threading algorithm will handle edge cases like:
+  - Subject line changes within a conversation
+  - Forks in conversation when multiple people reply to the same message
+  - Late replies to earlier messages in a thread
+
+### User Experience
+- Users can expand/collapse threads to manage visual complexity
+- Actions can be applied to entire threads (archive, delete, mark as read)
+- Thread snippets will prioritize showing unread content when available
+- The interface will maintain context when viewing a single message within a thread
+
+This implementation will require enhancements to our data model to properly track thread relationships and modifications to the UI components to support the hierarchical display of threaded conversations.

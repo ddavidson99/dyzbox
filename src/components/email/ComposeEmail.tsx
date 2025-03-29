@@ -47,6 +47,7 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
   const [showCcBcc, setShowCcBcc] = useState(false);
   const [sending, setSending] = useState(false);
   const [isProcessingAction, setIsProcessingAction] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const editorRef = useRef<TipTapEditorRef>(null);
   
   useEffect(() => {
@@ -165,7 +166,35 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
       const hasCcRecipients = ccRecipients.length > 0;
       const hasBccRecipients = bccRecipients.length > 0;
       const hasSubject = subject.trim().length > 0;
-      const hasBody = (editorRef.current?.getContent() || '').length > 0;
+      
+      // Get the editor content and check if it has actual text content (not just HTML tags)
+      const editorContent = editorRef.current?.getContent() || '';
+      
+      // Check for common empty editor patterns first
+      const emptyEditorPatterns = [
+        '<p></p>',
+        '<p><br></p>',
+        '<p><br/></p>',
+        '<p> </p>',
+        '<p>&nbsp;</p>'
+      ];
+      
+      const isEmptyContent = 
+        emptyEditorPatterns.includes(editorContent.trim()) || 
+        editorContent.trim() === '';
+      
+      // If not a common empty pattern, do a more thorough check
+      let hasBody = false;
+      if (!isEmptyContent) {
+        // TipTap often returns <p></p> or <p><br></p> for empty content
+        // Remove all HTML tags and whitespace to see if there's actual content
+        const textContent = editorContent
+          .replace(/<[^>]*>/g, '') // Remove all HTML tags
+          .replace(/&nbsp;/g, ' ') // Replace &nbsp; with spaces
+          .trim();
+        
+        hasBody = textContent.length > 0;
+      }
       
       const isEmpty = !hasToRecipients && !hasCcRecipients && !hasBccRecipients && !hasSubject && !hasBody;
       
@@ -177,8 +206,9 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
       
       // Email has content, save as draft
       try {
-        // Show loading toast
+        // Show loading toast and set saving state
         const loadingToastId = toast.loading('Saving draft...');
+        setSavingDraft(true);
         
         // Get email content
         const emailContent = editorRef.current?.getContent() || '';
@@ -196,19 +226,42 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
         toast.dismiss(loadingToastId);
         
         if (result.success) {
-          toast.success('Draft saved');
-          onCancel?.();
+          // Check if there's a warning message to show
+          if (result.error) {
+            if (result.error.includes('rate limits') || result.error.includes('taking longer than expected')) {
+              // Show warning but still close the window
+              toast.success('Draft saved');
+              toast(result.error, {
+                icon: '⚠️',
+                style: {
+                  borderRadius: '10px',
+                  background: '#FFF3CD',
+                  color: '#856404',
+                }
+              });
+              onCancel?.();
+            } else {
+              toast.success('Draft saved');
+              onCancel?.();
+            }
+          } else {
+            toast.success('Draft saved');
+            onCancel?.();
+          }
         } else {
           toast.error(result.error || 'Could not save draft');
+          setSavingDraft(false);
           setIsProcessingAction(false);
         }
       } catch (error) {
         console.error('Error saving draft:', error);
         toast.error('Could not save draft');
+        setSavingDraft(false);
         setIsProcessingAction(false);
       }
     } catch (error) {
       console.error('Error handling cancel:', error);
+      setSavingDraft(false);
       setIsProcessingAction(false);
     }
   }, [toRecipients, ccRecipients, bccRecipients, subject, onCancel, isProcessingAction, formatEmailBody]);
@@ -243,12 +296,24 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
   };
   
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
+    <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200 relative">
+      {/* Loading overlay */}
+      {(isProcessingAction || sending) && (
+        <div className="absolute inset-0 bg-white bg-opacity-70 z-10 flex items-center justify-center">
+          <div className="flex flex-col items-center">
+            <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+            <p className="text-gray-700 font-medium">
+              {savingDraft ? 'Saving draft...' : sending ? 'Sending...' : 'Processing...'}
+            </p>
+          </div>
+        </div>
+      )}
+      
       {/* Header with actions */}
       <div className="flex items-center justify-between bg-gray-50 px-4 py-2 border-b">
         <h2 className="text-lg font-medium">{isReply ? 'Reply to Email' : 'New Message'}</h2>
         <div className="flex items-center space-x-1">
-          <IconButton onClick={handleCancel} tooltip="Close">
+          <IconButton onClick={handleCancel} tooltip="Close" disabled={isProcessingAction}>
             <X size={18} weight="bold" />
           </IconButton>
         </div>
@@ -267,7 +332,7 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
                   onChange={setToRecipients}
                   placeholder="Add recipients..."
                   type="to"
-                  disabled={sending}
+                  disabled={sending || isProcessingAction}
                 />
               </div>
             </div>
@@ -277,6 +342,7 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
                 type="button"
                 onClick={() => setShowCcBcc(!showCcBcc)}
                 className="text-sm text-gray-600 hover:text-gray-800 border-l-2 border-l-blue-600 pl-1"
+                disabled={sending || isProcessingAction}
               >
                 {showCcBcc ? 'Hide Cc/Bcc' : 'Add Cc/Bcc'}
               </button>
@@ -296,7 +362,7 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
                     onChange={setCcRecipients}
                     placeholder="Add Cc recipients..."
                     type="cc"
-                    disabled={sending}
+                    disabled={sending || isProcessingAction}
                   />
                 </div>
               </div>
@@ -311,7 +377,7 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
                     onChange={setBccRecipients}
                     placeholder="Add Bcc recipients..."
                     type="bcc"
-                    disabled={sending}
+                    disabled={sending || isProcessingAction}
                   />
                 </div>
               </div>
@@ -329,7 +395,7 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
               onChange={(e) => setSubject(e.target.value)}
               className="flex-1 border-none outline-none focus:ring-0 p-1"
               placeholder="Subject"
-              disabled={sending}
+              disabled={sending || isProcessingAction}
               required
             />
           </div>
@@ -348,7 +414,10 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
             <PaperPlaneTilt size={18} weight="bold" />
           </IconButton>
           
-          <IconButton tooltip="Attach files">
+          <IconButton 
+            tooltip="Attach files" 
+            disabled={sending || isProcessingAction}
+          >
             <PaperclipHorizontal size={18} weight="bold" />
           </IconButton>
           
@@ -370,7 +439,7 @@ const ComposeEmail: React.FC<ComposeEmailProps> = ({
             initialValue={initialBody}
             placeholder="Write your message..."
             minHeight="250px"
-            readOnly={sending}
+            readOnly={sending || isProcessingAction}
           />
         </div>
       </div>

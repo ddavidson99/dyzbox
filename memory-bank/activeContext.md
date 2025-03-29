@@ -4,7 +4,7 @@
 
 The DyzBox project is currently in the initial implementation phase. We've established the foundation for the email management client and implemented basic UI components based on the design inspiration. Our immediate priorities are:
 
-1. **UI Component Enhancements**: Refining the clean, modern interface with a resizable two-pane layout.
+1. **UI Component Enhancements**: Refining the clean, modern interface with floating windows for email compose and viewing that overlay on top of the inbox.
 2. **Gmail API Integration**: Connecting to Gmail to fetch and display real emails.
 3. **Authentication Setup**: Implementing user authentication with Gmail using NextAuth.
 4. **Email Operations**: Building core email functionality (read, send, reply, forward).
@@ -16,6 +16,16 @@ The DyzBox project is currently in the initial implementation phase. We've estab
 10. **Notification Features**: Implementing visual indicators for unread messages and attention-grabbing animations.
 11. **Multi-Provider Strategy**: Designing the foundation for supporting both Gmail and Outlook while maintaining a unified user identity.
 12. **Large Inbox Handling**: Improving Gmail API integration to properly handle large email inboxes with pagination and accurate counts.
+13. **Draft Management**: Implementing Gmail draft saving functionality with automatic content detection and user feedback.
+14. **Rich Text Editing**: Updating the compose interface with modern, React-compatible rich text editing.
+15. **Compose Experience**: Implementing floating compose window behavior with improved user experience and feedback.
+16. **Performance Optimization**: Enhancing email draft saving with improved network request handling and user interface feedback.
+17. **Console Logging**: Cleaning up unnecessary console logs to maintain a cleaner development environment.
+18. **UI Layout Update**: Converted from a split-pane layout to a modern floating window approach where both compose and view windows overlay on top of the inbox for a cleaner, more focused experience.
+19. **Trash Implementation**: Creating a dedicated Trash page with consistent UI patterns matching the Inbox page.
+20. **Email Deletion Flow**: Fixing issues with email deletion to ensure proper UI updates after deleting messages.
+21. **Pagination Enhancement**: Improving pagination display for accurate "x - y of z" formatting based on page numbers.
+22. **User Profile Management**: Adding user profile dropdown with sign out options in the application header.
 
 ## Recent Decisions
 
@@ -35,7 +45,7 @@ The DyzBox project is currently in the initial implementation phase. We've estab
 14. **Client Component Structure**: Updated client components to use the latest Next.js patterns for handling route parameters with React.use().
 15. **Email Reply Implementation**: Enhanced reply functionality to properly include the original email text in quoted format, maintaining the standard email client experience.
 16. **Route Organization**: Created dedicated routes for key email categories (inbox, sent) with consistent patterns for both listing and detail views.
-17. **UI Layout Update**: Converted from a single-page email view to a modern two-pane layout with resizable panels.
+17. **UI Layout Update**: Converted from a split-pane layout to a modern floating window approach where both compose and view windows overlay on top of the inbox for a cleaner, more focused experience.
 18. **Date Formatting**: Implemented intelligent date formatting that shows time for today's emails and date for older emails.
 19. **Email Branding**: Added automatic "Sent with DYZBOX" signature to all outgoing emails.
 20. **Space Optimization**: Reduced sidebar font sizes for a more compact view and better space utilization.
@@ -44,7 +54,15 @@ The DyzBox project is currently in the initial implementation phase. We've estab
 23. **Authentication Strategy**: Decided on provider-based authentication (OAuth) with account linking for multiple email providers, using a single user identity in our system.
 24. **Gmail Provider Optimization**: Improved the GmailProvider class to handle large inboxes with better batch processing, rate limiting, and pagination token support.
 25. **Email Statistics Approach**: Implemented direct label statistics from Gmail API to get accurate inbox and unread counts.
-26. **Compose Email Enhancement Plan**: Designed a plan to enhance the email compose functionality with Quill.js for rich text editing and an icon-based UI that aligns with our minimal design philosophy. Keyboard shortcuts will be implemented in a later phase after core functionality is complete.
+26. **Compose Email Enhancement Plan**: Designed a plan to enhance the email compose functionality with TipTap for rich text editing (replacing React Quill for React 19 compatibility) and an icon-based UI that aligns with our minimal design philosophy. Keyboard shortcuts will be implemented in a later phase after core functionality is complete.
+27. **Draft Saving Strategy**: Implemented automatic draft saving based on content detection - emails with any content are saved as drafts when closed, while completely empty emails are discarded without prompting. This provides a seamless user experience while preserving important content.
+28. **Browser Dialog Management**: Disabled the browser's built-in "Leave site?" confirmation dialog when navigating away from the compose view to avoid redundant prompts and provide a smoother experience.
+29. **State Management for Email Actions**: Implemented an isProcessingAction state to prevent duplicate operations when saving drafts, sending emails, or performing other actions. This ensures that users can't trigger multiple operations simultaneously.
+30. **Trash Implementation Approach**: Created a dedicated Trash page with consistent UI patterns matching the Inbox page, leveraging the existing EmailService with a specific getTrash method.
+31. **Email Deletion Handling**: Improved the email deletion flow to properly update the UI after deletion, ensuring deleted emails no longer appear in the detail view.
+32. **Email Counting Strategy**: Shifted from using the messages API to the labels API for accurate email counting, providing better performance and reliability.
+33. **Pagination Display Algorithm**: Implemented a deterministic algorithm to calculate page range displays based on current page number and items per page rather than relying on result sizes.
+34. **User Profile Management**: Centralized the sign out functionality in the header's user profile dropdown to provide a consistent and intuitive user experience.
 
 ## Current Challenges
 
@@ -68,6 +86,16 @@ The DyzBox project is currently in the initial implementation phase. We've estab
 18. **Rate Limit Handling**: Properly handling Gmail API rate limits when fetching emails from large inboxes.
 19. **Inbox Count Accuracy**: Getting accurate total and unread counts for large Gmail inboxes (20,000+ emails).
 20. **Pagination Implementation**: Creating efficient pagination that respects API limits while providing a smooth user experience.
+21. **React 19 Compatibility**: Updating components and libraries that use deprecated React features (like findDOMNode) to ensure compatibility with React 19.
+22. **Draft Content Detection**: Balancing the automatic draft saving behavior to save important content without creating excessive draft clutter.
+23. **Browser Navigation Behavior**: Managing browser-specific behaviors like confirmation dialogs when navigating away from forms with unsaved changes.
+24. **Draft Saving Performance**: Addressing slow draft saving operations by implementing timeouts and improving error handling.
+25. **UI Feedback Consistency**: Ensuring users receive appropriate visual feedback during long-running operations.
+26. **Console Noise Reduction**: Managing console output to eliminate unnecessary debugging logs while preserving critical error information.
+27. **Email Threading Implementation**: Designing and implementing an effective email threading system that groups related messages into conversations.
+28. **Cross-page Consistency**: Maintaining consistent behavior and appearance across different views (inbox, trash, sent, etc.).
+29. **Page Range Calculation**: Ensuring accurate pagination display across different email views with varying total counts.
+30. **Email Deletion Edge Cases**: Handling various edge cases in the email deletion flow, such as deleting the currently viewed email.
 
 ## Implementation Strategy
 
@@ -86,6 +114,8 @@ The development approach follows a phased implementation plan:
 - Implementing notification features to draw attention to unread messages
 - Creating the database schema for user identity and provider linking
 - Optimizing email fetching for large inboxes with proper pagination and count statistics
+- Implementing Gmail draft saving capabilities with automatic content detection
+- Updating rich text editing components for React 19 compatibility
 
 ### Next Phase: Enhanced AI Features & Multi-Provider Support (Q2 2025)
 - Adding AI-powered email categorization and summary capabilities
@@ -102,14 +132,16 @@ The development approach follows a phased implementation plan:
 2. **Email Identification**: Implement the email identification and referencing system
 3. **Python Microservice Setup**: Create initial Python service for AI processing
 4. **Service Communication**: Implement API endpoints for Next.js to Python communication
-5. **Thread View**: Implement email thread/conversation view
+5. **Email Threading**: Implement comprehensive email thread/conversation view with messages organized chronologically to improve context and reduce inbox clutter
 6. **Mobile Responsiveness**: Ensure the UI works well on mobile devices
 7. **Error Handling**: Continue improving error handling across all components
 8. **UI Refinement**: Further refine the resizable panel experience and interactions
 9. **Notification Features**: Expand the animation system to other notifications beyond unread count
 10. **User Identity Schema**: Implement the database schema for user identity and provider linking
 11. **Account Linking UI**: Design the interface for users to link multiple email accounts
-12. **Enhanced Compose UI**: Implement the new compose email interface with icon-based actions and Quill.js integration for rich text editing
+12. **Enhanced Compose UI**: Implement the new compose email interface with icon-based actions and TipTap integration for rich text editing
+13. **Draft Management Enhancements**: Expand draft management to include draft listing, editing, and deletion capabilities
+14. **Search Implementation**: Create a robust search interface for finding emails across categories
 
 ## Technical Insights
 
@@ -168,9 +200,9 @@ The development approach follows a phased implementation plan:
    - Automatic signature added to all outgoing emails
 
 10. **UI Enhancement Implementation**: We've improved the email viewing experience with these patterns:
-    - Converted to a two-pane layout with resizable panels using React state
-    - Implemented a draggable splitter with visual feedback during resizing
-    - Designed a consistent width allocation system between email list and detail panes
+    - Implemented a floating window design for both email viewing and composing that overlays on top of the inbox
+    - Created modal-based UI components that maintain context while focusing on the current action
+    - Designed a consistent width allocation system for floating windows
     - Created intelligent date formatting that adapts based on email age
     - Made UI components reusable across different parts of the application
     - Optimized space usage with compact sidebar and appropriate font sizes
@@ -211,6 +243,36 @@ The development approach follows a phased implementation plan:
    - Added comprehensive error handling to recover from rate limit errors
    - Improved UI feedback during rate-limited operations
 
+16. **Gmail Draft Integration**: We've implemented draft saving functionality with these patterns:
+    - Using Gmail API's drafts endpoints to create and manage drafts
+    - Building content detection logic to determine when emails should be saved
+    - Converting email data to the proper format required by Gmail API
+    - Implementing base64url encoding for email content
+    - Adding proper error handling and user feedback for draft operations
+    - Creating toast notifications to inform users about draft status
+    - Disabling browser confirmation dialogs for a smoother experience
+    - Optimizing the draft saving performance with timeout mechanisms
+    - Implementing network request optimizations to prevent UI lockups
+    - Adding loading overlay to provide clear visual feedback during operations
+    - Improving error handling for rate-limited operations with backoff strategies
+
+17. **Floating Compose Window Implementation**: We've enhanced the email composition experience:
+    - Created a modal-based floating compose window implementation
+    - Implemented proper rendering in root layout to maintain consistent z-index behavior
+    - Added smooth transitions for opening and closing the compose window
+    - Ensured proper focus management for improved accessibility
+    - Implemented smart empty content detection to prevent unnecessary draft creation
+    - Added clear visual feedback during drafting and sending operations
+    - Created a custom loading overlay with operation-specific messaging
+
+18. **Logging System Cleanup**: We've improved development experience by:
+    - Removing unnecessary console log statements throughout the codebase
+    - Preserving essential error logging for debugging critical issues
+    - Cleaning up verbose API response logging that cluttered the console
+    - Focusing logging on actual errors rather than normal operation data
+    - Maintaining structured error information for troubleshooting
+    - Improving code maintainability through cleaner, more focused logging
+
 ## Open Questions
 
 1. How can we optimize the Gmail API usage to handle large email volumes efficiently?
@@ -231,6 +293,9 @@ The development approach follows a phased implementation plan:
 16. What's the most reliable approach to get accurate email counts from the Gmail API for very large inboxes?
 17. How can we implement a caching layer to reduce dependency on Gmail API quota for common operations?
 18. What's the optimal pattern for implementing infinite scroll with Gmail's pagination tokens?
+19. How should we handle automatic draft saving for emails that are started but abandoned?
+20. What's the best approach for organizing and displaying saved drafts for easy access?
+21. How can we optimize the rich text editing experience for mobile devices?
 
 ## Current Team Focus
 
@@ -244,6 +309,8 @@ The development approach follows a phased implementation plan:
 - **QA**: Developing testing strategies for error handling and resilience
 - **Architecture Team**: Designing the multi-provider authentication and user identity system
 - **Performance Team**: Optimizing Gmail API usage for large inboxes and implementing efficient pagination
+- **Email Workflow Team**: Implementing complete draft management and enhanced compose functionality
+- **UI Consistency Team**: Ensuring consistent styling across all components with the light-gray/blue accent theme
 
 ## Reference Materials
 
@@ -274,6 +341,11 @@ The development approach follows a phased implementation plan:
 13. The subtle animation for unread messages will draw attention without being distracting
 14. Users will prefer OAuth-based authentication over creating separate DyzBox credentials
 15. Provider-based authentication with account linking will provide the optimal balance of security and user experience
+16. The automatic signature approach will enhance brand recognition without impacting user experience
+17. The intelligent date formatting will provide context-relevant information to users
+18. The subtle animation for unread messages will draw attention without being distracting
+19. Users will prefer OAuth-based authentication over creating separate DyzBox credentials
+20. Provider-based authentication with account linking will provide the optimal balance of security and user experience
 
 ## Recent Changes
 

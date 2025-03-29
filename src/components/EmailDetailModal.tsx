@@ -5,9 +5,10 @@ interface EmailDetailModalProps {
   email: Email;
   onClose: () => void;
   onEmailRead: (emailId: string) => void;
+  onEmailAction: (emailId: string) => void;
 }
 
-export default function EmailDetailModal({ email, onClose, onEmailRead }: EmailDetailModalProps) {
+export default function EmailDetailModal({ email, onClose, onEmailRead, onEmailAction }: EmailDetailModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20">
       <div 
@@ -18,6 +19,7 @@ export default function EmailDetailModal({ email, onClose, onEmailRead }: EmailD
           email={email}
           onClose={onClose}
           onEmailRead={onEmailRead}
+          onEmailAction={onEmailAction}
         />
       </div>
     </div>

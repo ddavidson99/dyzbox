@@ -1,21 +1,24 @@
 import { Email } from '@/lib/email/providers/EmailProvider';
 import { ArrowBendUpLeft, ArrowBendDoubleUpLeft, ArrowBendUpRight } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import EmailActions from './EmailActions';
 
 interface EmailDetailProps {
   email: Email;
   onClose: () => void;
   onEmailRead: (emailId: string) => void;
+  onEmailAction: (emailId: string) => void;
 }
 
-export default function EmailDetail({ email, onClose, onEmailRead }: EmailDetailProps) {
+export default function EmailDetail({ email, onClose, onEmailRead, onEmailAction }: EmailDetailProps) {
   const router = useRouter();
+  const hasMarkedAsRead = useRef(false);
   
   // Mark email as read when viewed
   useEffect(() => {
-    if (email && !email.isRead) {
+    if (email && !email.isRead && !hasMarkedAsRead.current) {
+      hasMarkedAsRead.current = true;
       onEmailRead(email.id);
     }
   }, [email, onEmailRead]);
@@ -57,8 +60,7 @@ export default function EmailDetail({ email, onClose, onEmailRead }: EmailDetail
               emailId={email.id} 
               isRead={email.isRead} 
               onActionComplete={() => {
-                // Close email detail when action completes
-                onClose();
+                onEmailAction(email.id);
               }}
               onClose={onClose}
             />

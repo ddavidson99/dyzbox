@@ -6,14 +6,15 @@ import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { 
-  PencilSimple, 
   MagnifyingGlass, 
   User, 
   Gear,
-  List
+  List,
+  SignOut
 } from "@phosphor-icons/react";
 import { getLabels } from "@/app/actions/email";
 import { useSidebar } from "./SidebarContext";
+import ComposeButton from "../email/ComposeButton";
 
 export function Header() {
   const { data: session, status } = useSession();
@@ -52,10 +53,6 @@ export function Header() {
     fetchLabels();
   }, []);
   
-  const handleComposeClick = () => {
-    router.push('/inbox/compose');
-  };
-
   const handleSearchClick = () => {
     // Placeholder for search functionality
     console.log('Search clicked');
@@ -127,13 +124,7 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-6">
-        <button 
-          onClick={handleComposeClick}
-          className="text-gray-600 hover:text-gray-900 transition-colors"
-          aria-label="Compose email"
-        >
-          <PencilSimple size={22} weight="light" />
-        </button>
+        <ComposeButton floating={false} />
         
         <button 
           onClick={handleSearchClick}
@@ -178,6 +169,7 @@ export function Header() {
                         signOut({ callbackUrl: "/" });
                       }}
                     >
+                      <SignOut size={16} className="mr-2" />
                       Sign out
                     </button>
                   </>

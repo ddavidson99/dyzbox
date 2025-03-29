@@ -1,21 +1,16 @@
 "use client";
 
-import { useState, useEffect, useRef, cache } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { EmailService } from '@/lib/email/emailService';
 import { GmailProvider } from '@/lib/email/providers/GmailProvider';
 import { Email } from '@/lib/email/providers/EmailProvider';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Inbox } from 'lucide-react';
-import { ArrowsClockwise, ArrowBendUpLeft, ArrowSquareOut, X, CaretLeft, CaretRight, CaretDown, SignOut } from '@phosphor-icons/react';
-import EmailActions from '@/components/EmailActions';
+import { Trash, ArrowsClockwise, CaretLeft, CaretRight, CaretDown, SignOut } from '@phosphor-icons/react';
 import EmailDetailModal from '@/components/EmailDetailModal';
-import { getEmailCounts } from '../actions/emailCounts';
+import { getTrashCounts } from '../actions/emailCounts';
 
-// Estimate of email list item height in pixels - reduced for better space utilization
-const EMAIL_ITEM_HEIGHT = 55;
-
-export default function InboxPage() {
+export default function TrashPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -91,7 +86,7 @@ export default function InboxPage() {
       // Get the cache size before the request
       const cacheSizeBefore = emailService.getCacheSize();
       
-      const result = await emailService.getInbox({ 
+      const result = await emailService.getTrash({ 
         pageToken: token,
         limit: itemsPerPage
       });
@@ -144,8 +139,8 @@ export default function InboxPage() {
       }
       
     } catch (e: any) {
-      console.error('Error loading emails:', e);
-      setError(e.message || 'Failed to load emails');
+      console.error('Error loading trash emails:', e);
+      setError(e.message || 'Failed to load trash emails');
     } finally {
       setLoadingMore(false);
       setLoading(false);
@@ -156,7 +151,7 @@ export default function InboxPage() {
   const fetchEmailCounts = async () => {
     try {
       setCountsLoading(true);
-      const result = await getEmailCounts();
+      const result = await getTrashCounts();
       
       if (result.success) {
         setEmailCounts({
@@ -171,8 +166,8 @@ export default function InboxPage() {
     }
   };
 
-  // Function to refresh inbox
-  const refreshInbox = () => {
+  // Function to refresh trash
+  const refreshTrash = () => {
     // Clear email cache
     const emailService = getEmailService();
     if (emailService) {
@@ -318,7 +313,7 @@ export default function InboxPage() {
   const handleEmailSelect = (email: Email) => {
     const params = new URLSearchParams(searchParams);
     params.set('id', email.id);
-    router.push(`/inbox?${params.toString()}`);
+    router.push(`/trash?${params.toString()}`);
     setSelectedEmail(email);
     
     if (!email.isRead && session?.accessToken) {
@@ -334,7 +329,7 @@ export default function InboxPage() {
     setSelectedEmail(null);
     const params = new URLSearchParams(searchParams);
     params.delete('id');
-    router.push(`/inbox?${params.toString()}`);
+    router.push(`/trash?${params.toString()}`);
   };
 
   // Handle email read action
@@ -347,7 +342,7 @@ export default function InboxPage() {
     );
   };
   
-  // Handle email deletion or archiving
+  // Handle email restoration or permanent deletion
   const handleEmailAction = (emailId: string) => {
     // Remove the email from the list
     setEmails(prev => prev.filter(email => email.id !== emailId));
@@ -358,12 +353,7 @@ export default function InboxPage() {
     // Update URL to remove the selected email ID
     const params = new URLSearchParams(searchParams);
     params.delete('id');
-    router.push(`/inbox?${params.toString()}`);
-    
-    // Refresh counts after a delay
-    setTimeout(() => {
-      fetchEmailCounts();
-    }, 1000);
+    router.push(`/trash?${params.toString()}`);
   };
 
   // Load email details if ID is in URL but email data is not in selected state
@@ -384,7 +374,7 @@ export default function InboxPage() {
         // Email not found and we have emails loaded - likely deleted
         const params = new URLSearchParams(searchParams);
         params.delete('id');
-        router.push(`/inbox?${params.toString()}`);
+        router.push(`/trash?${params.toString()}`);
         return;
       }
       
@@ -403,7 +393,7 @@ export default function InboxPage() {
         // Clear the URL if we can't load the email
         const params = new URLSearchParams(searchParams);
         params.delete('id');
-        router.push(`/inbox?${params.toString()}`);
+        router.push(`/trash?${params.toString()}`);
       } finally {
         setEmailLoading(false);
       }
@@ -420,9 +410,9 @@ export default function InboxPage() {
         <div className="p-4 h-full flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
-              <Inbox className="h-5 w-5 mr-2 text-gray-600" />
+              <Trash className="h-5 w-5 mr-2 text-gray-600" />
               <h2 className="text-lg font-semibold">
-                Inbox
+                Trash
                 {countsLoading ? (
                   <span className="text-sm font-medium text-gray-400 ml-2">
                     Loading...
@@ -430,7 +420,7 @@ export default function InboxPage() {
                 ) : emailCounts.unreadEmails > 0 && (
                   <span 
                     className="text-sm font-medium text-gray-500 ml-2"
-                    title={`Total unread emails in Inbox`}
+                    title={`Total unread emails in Trash`}
                   >
                     {emailCounts.unreadEmails.toLocaleString()}
                   </span>
@@ -452,10 +442,10 @@ export default function InboxPage() {
               )}
               
               <button
-                onClick={refreshInbox}
+                onClick={refreshTrash}
                 disabled={loading || loadingMore}
                 className="text-gray-500 hover:bg-gray-100 p-1 rounded"
-                aria-label="Refresh inbox"
+                aria-label="Refresh trash"
               >
                 <ArrowsClockwise size={16} />
               </button>
@@ -523,7 +513,7 @@ export default function InboxPage() {
           
           {loading && (
             <div className="text-center py-4">
-              <p className="text-sm">Loading inbox...</p>
+              <p className="text-sm">Loading trash...</p>
             </div>
           )}
           
@@ -534,7 +524,7 @@ export default function InboxPage() {
           )}
           
           {!loading && emails.length === 0 && !error ? (
-            <p className="text-sm text-gray-500">No emails found in inbox</p>
+            <p className="text-sm text-gray-500">No emails found in trash</p>
           ) : (
             <div className="overflow-y-auto">
               <ul className="space-y-1">

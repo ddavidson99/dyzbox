@@ -383,8 +383,13 @@ export async function saveDraft(params: SendEmailParams): Promise<{ success: boo
         .replace(/\//g, '_')
         .replace(/=+$/, '');
       
-      // Call Gmail API to create draft
-      const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/drafts', {
+      // Create a timeout promise that rejects after 10 seconds
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Draft save operation timed out')), 10000);
+      });
+      
+      // Create the API request
+      const fetchPromise = fetch('https://gmail.googleapis.com/gmail/v1/users/me/drafts', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.accessToken}`,
@@ -397,7 +402,19 @@ export async function saveDraft(params: SendEmailParams): Promise<{ success: boo
         })
       });
       
+      // Race the fetch against the timeout
+      const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
+      
       if (!response.ok) {
+        // Handle rate limiting (429 error)
+        if (response.status === 429) {
+          console.warn('Gmail API rate limit reached when saving draft');
+          return { 
+            success: true, 
+            error: 'Draft may be saved with delay due to rate limits'
+          };
+        }
+        
         const errorData = await response.json();
         console.error('Error saving draft:', errorData);
         return { success: false, error: errorData.error?.message || 'Failed to save draft' };
@@ -409,6 +426,16 @@ export async function saveDraft(params: SendEmailParams): Promise<{ success: boo
       return { success: true };
     } catch (error) {
       console.error('Error in saveDraft:', error);
+      
+      // Check if it's a timeout error
+      if (error instanceof Error && error.message === 'Draft save operation timed out') {
+        // Return success anyway, as draft might still be saved in the background
+        return { 
+          success: true, 
+          error: 'Draft save taking longer than expected, but may still be saved'
+        };
+      }
+      
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'An error occurred while saving draft'

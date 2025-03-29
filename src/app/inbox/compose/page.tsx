@@ -2,7 +2,7 @@
 
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import ComposeEmail from '@/components/email/ComposeEmail';
+import ComposeEmailModal from '@/components/email/ComposeEmailModal';
 
 export default function ComposeEmailPage() {
   const { data: session } = useSession();
@@ -25,20 +25,18 @@ export default function ComposeEmailPage() {
   };
   
   const handleSend = () => {
-    // After successful sending, navigation will be handled inside ComposeEmail component
+    router.push(returnTo);
   };
   
   return (
-    <div className="max-w-4xl mx-auto p-4">
-      <ComposeEmail 
-        initialTo={to}
-        initialSubject={subject}
-        initialBody={body}
-        isReply={isReply}
-        emailId={emailId || ''}
-        onCancel={handleCancel}
-        onSend={handleSend}
-      />
-    </div>
+    <ComposeEmailModal 
+      initialTo={to}
+      initialSubject={subject}
+      initialBody={body}
+      isReply={isReply}
+      emailId={emailId || ''}
+      onClose={handleCancel}
+      onSend={handleSend}
+    />
   );
 } 
